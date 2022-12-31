@@ -1,0 +1,41 @@
+# Deepstream Tracking
+
+This example re-implements the example from https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/blob/master/apps/deepstream-test2/deepstream_test_2.py, hopefully
+in a bit more readable format. The example detects and tracks following objects seen in a h264 encoded video stream:
+
+* PGIE_CLASS_ID_VEHICLE = 0
+* PGIE_CLASS_ID_BICYCLE = 1
+* PGIE_CLASS_ID_PERSON = 2
+* PGIE_CLASS_ID_ROADSIGN = 3
+
+Following inference and tracker components are used:
+
+* Primary inference: 4-class detector
+  * Configuration file: [dstest2_pgie_config.txt](dstest2_pgie_config.txt)
+* Secondary inference 1: vehicle color classifier
+  * Configuration file: [dstest2_sgie1_config.txt](dstest2_sgie1_config.txt)
+* Secondary inference 2: vehicle make classifier
+  * Configuration file: [dstest2_sgie2_config.txt](dstest2_sgie2_config.txt)
+* Secondary inference 3: vehicle type classifier
+  * Configuration file: [dstest2_sgie3_config.txt](dstest2_sgie3_config.txt)
+* Tracker
+  * Configuration file: [dstest2_tracker_config.txt](dstest2_tracker_config.txt)
+
+## Requirements
+
+* DeepStreamSDK 6.1.1
+* Python 3.8
+* Gst-python
+* gstreamer1.0-plugins-bad (you probably need this)
+
+## How to Run the Example
+
+In order to get help regarding input parameters, execute the following:
+
+`python3 gst-tracking.py -h`
+
+In order to process an mp4 file (with h264 encoded video), execute the following:
+
+`python3 gst-tracking.py -i <PATH-TO-INPUT-FILE> -o <PATH-TO-OUTPUT-FILE>`
+
+Output video, with overlays, is generated.
