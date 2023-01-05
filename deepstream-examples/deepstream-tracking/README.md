@@ -21,6 +21,15 @@ Following inference and tracker components are used:
 * Tracker
   * Configuration file: [dstest2_tracker_config.txt](dstest2_tracker_config.txt)
 
+## Versions
+
+There are two versions:
+* [gst-tracking.py](gst-tracking.py)
+  * This version draws bounding box and object information using deepstream's native way.
+* [gst-tracking-v2.py](gst-tracking-v2.py)
+  * This version draws the information so that bounding- and text boxes for smaller objects are drawn first. 
+  Everything else being the same, smaller objects tend to be further away from the camera. Also bounding bbox colors are different for each object type.
+
 ## Requirements
 
 * DeepStreamSDK 6.1.1
