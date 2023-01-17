@@ -37,51 +37,6 @@ There are two versions:
 * gstreamer1.0-plugins-ugly
 * Triton Inference Server (locally built)
 
-## Build Triton Inference Server
-
-This example uses a locally built version of Triton. The first step is to build Triton Inference Server v2.29.0:
-
-```
-git clone git@github.com:triton-inference-server/server.git
-cd server
-git checkout tags/v2.29.0
-python build.py --enable-logging --enable-tracing --enable-gpu
-```
-
-Copy recently built backends where Triton can find them:
-
-```
-cd build/install
-sudo cp -vr ./backends /opt/tritonserver
-```
-
-Build the models shipped with DeepStream
-
-```
-cd /opt/nvidia/deepstream/deepstream/samples
-./prepare_ds_triton_model_repo.sh
-```
-
-## Environment Variables
-
-Following environment variables need to be exported:
-
-```
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:<TRITON-SOURCE>/build/install/lib
-```
-
-Replace `<TRITON-SOURCE>` with the location where Triton source code was cloned.
-
-```
-export GST_PLUGIN_PATH=/opt/nvidia/deepstream/deepstream/lib/gst-plugins/
-```
-
-Test that the `nvinferenceserver` plugin can be found
-
-```
-gst-inspect-1.0 nvinferserver
-```
-
 ## How to Run the Example
 
 First you need to launch the Tritonserver:
