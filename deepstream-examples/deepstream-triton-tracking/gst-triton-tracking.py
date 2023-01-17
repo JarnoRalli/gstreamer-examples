@@ -1,6 +1,6 @@
 """
-This file re-implements deepstream (Python) example deepstream-test2.py, hopefully in a cleaner manner. In essence
-the example reads a h264 encoded video stream from a file, like mp4, and tracks objects like:
+This file re-implements deepstream (Python) example deepstream-test2.py, using Triton Inference Server.
+In essence the example reads a h264 encoded video stream from a file, like mp4, and tracks objects like:
 
 PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
@@ -9,11 +9,11 @@ PGIE_CLASS_ID_ROADSIGN = 3
 
 For more information regarding the input parameters, execute the following:
 
-python3 gst-tracking.py -h
+python3 gst-triton-tracking.py -h
 
 In order to process a file:
 
-python3 gst-tracking.py -i /opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_1080p_h264.mp4
+python3 gst-triton-tracking.py -i /opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_1080p_h264.mp4
 """
 
 import argparse
@@ -211,7 +211,7 @@ class Player(object):
         # File sink branch
         self.filesink_queue = gsthelpers.create_element("queue", "filesink-queue")
         self.file_sink_converter = gsthelpers.create_element("nvvideoconvert", "file-sink-videoconverter")
-        self.file_sink_encoder = gsthelpers.create_element("nvv4l2h264enc", "file-sink-encoder")
+        self.file_sink_encoder = gsthelpers.create_element("x264enc", "file-sink-encoder")
         self.file_sink_parser = gsthelpers.create_element("h264parse", "file-sink-parser")
         self.file_sink_muxer = gsthelpers.create_element("matroskamux", "file-sink-muxer")
         self.file_sink = gsthelpers.create_element("filesink", "file-sink")
@@ -249,16 +249,10 @@ class Player(object):
         self.stream_muxer.set_property("batch-size", 1)
         self.stream_muxer.set_property("batched-push-timeout", 4000000)
 
-        # Set properties for file_sink_encoder
-        self.file_sink_encoder.set_property("profile", 0)
-
         # Set properties for sinks
-#        self.video_sink.set_property("sync", False)
+        self.video_sink.set_property("async", False)
         self.file_sink.set_property("sync", False)
-
-        # Set properties for queues
-        self.videosink_queue.set_property("leaky", 2)
-        self.filesink_queue.set_property("leaky", 2)
+        self.file_sink.set_property("async", False)
 
         # Set properties for the inference engines
         self.primary_inference.set_property("config-file-path", "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt")
@@ -369,7 +363,6 @@ class Player(object):
         assert src.link(sink) == Gst.PadLinkReturn.OK
 
         gsthelpers.link_elements([self.file_sink_muxer, self.file_sink])
-#        gsthelpers.link_elements([self.filesink_queue, self.file_sink])
 
         # --- Meta-data output ---
         # Add a probe to the sink pad of the osd-element in order to draw/print meta-data to the canvas

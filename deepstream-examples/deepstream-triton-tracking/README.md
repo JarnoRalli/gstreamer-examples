@@ -23,8 +23,13 @@ There are two versions:
 * [gst-triton-tracking.py](gst-triton-tracking.py)
   * This version draws bounding box and object information using deepstream's native way.
 * [gst-triton-tracking-v2.py](gst-triton-tracking-v2.py)
-  * This version draws the information so that bounding- and text boxes for smaller objects are drawn first. 
+  * This version draws the information so that bounding- and text boxes for smaller objects are drawn first.
   Everything else being the same, smaller objects tend to be further away from the camera. Also bounding bbox colors are different for each object type.
+
+## Observations
+
+When using the `nvv4l2h264enc` encoder in the file-sink branch the pipeline became unresponsive after having processed some frames. It seems to work with `x264enc`
+without any problems.
 
 ## Requirements
 
