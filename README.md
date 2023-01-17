@@ -20,6 +20,7 @@ python3 -m pip install --upgrade build
 In order to create the package, run the following command from the directory where the `pyproject.toml` is located:
 
 ```
+cd helper-package
 python3 -m build
 ```
 
