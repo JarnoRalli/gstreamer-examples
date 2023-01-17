@@ -212,7 +212,7 @@ class Player(object):
         self.file_sink_converter = gsthelpers.create_element("nvvideoconvert", "file-sink-videoconverter")
         self.file_sink_encoder = gsthelpers.create_element("nvv4l2h264enc", "file-sink-encoder")
         self.file_sink_parser = gsthelpers.create_element("h264parse", "file-sink-parser")
-        self.file_sink_muxer = gsthelpers.create_element("qtmux", "file-sink-muxer")
+        self.file_sink_muxer = gsthelpers.create_element("matroskamux", "file-sink-muxer")
         self.file_sink = gsthelpers.create_element("filesink", "file-sink")
 
         # Add elements to the pipeline
@@ -328,7 +328,7 @@ class Player(object):
         #
         #             |-> queue -> videosink
         # osd -> tee -|
-        #             |-> queue -> videoconvert -> h264enc -> h264parse -> qtdemux -> filesink
+        #             |-> queue -> videoconvert -> h264enc -> h264parse -> matroskamux -> filesink
 
         # --- Video-sink output branch ---
         src = self.tee.get_request_pad("src_0")
