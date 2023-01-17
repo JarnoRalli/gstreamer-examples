@@ -31,6 +31,7 @@ There are two versions:
 * DeepStreamSDK 6.1.1
 * Python 3.8
 * Gst-python
+* pyds 1.1.5
 * gstreamer1.0-plugins-good
 * gstreamer1.0-plugins-bad
 * gstreamer1.0-plugins-ugly
