@@ -18,7 +18,7 @@ python3 gst-tracking-v2.py -h
 
 In order to process a file:
 
-python3 gst-tracking-v2.py -i /opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_1080p_h264.mp4
+python3 gst-tracking-v2.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 """
 
 from collections import namedtuple

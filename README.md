@@ -5,6 +5,7 @@ This repository contains both GStreamer and Deepstream related examples in Pytho
 * [helper-package](helper-package/README.md). A package that contains helper functions and classes.
 * [deepstream-examples](deepstream-examples/README.md). Deepstream related examples.
 * [gst-examples](gst-examples/README.md). Gst-examples.
+* [docker](docker/README.md). Docker files for generating containers.
 
 ## Helper-Package
 
@@ -13,13 +14,13 @@ use modules from this package, so it needs to be available to Python. Easiest wa
 
 Make sure that you have the latest version of PyPA's build installed:
 
-```
+```bash
 python3 -m pip install --upgrade build
 ```
 
 In order to create the package, run the following command from the directory where the `pyproject.toml` is located:
 
-```
+```bash
 cd helper-package
 python3 -m build
 ```
@@ -27,7 +28,7 @@ python3 -m build
 Above command creates a new directory called `dist` where the package can be found. In order to install the created package, 
 run the following command from the `dist` directory:
 
-```
+```bash
 pip3 install ./helpers-0.0.1-py3-none-any.whl
 ```
 
@@ -37,7 +38,7 @@ Replace `helpers-0.0.1-py3-none-any.whl` with the actual name/path of the whl-fi
 
 Once you have installed the `helpers` package, you can use is as follows:
 
-```
+```bash
 from helpers import *
 ```
 

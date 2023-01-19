@@ -46,7 +46,7 @@ without any problems.
 
 First you need to launch the Tritonserver:
 
-```
+```bash
 cd <TRITON-SOURCE>/build/install/bin
 ./tritonserver \
     --log-verbose=2 --log-info=1 --log-warning=1 --log-error=1 \
@@ -57,10 +57,19 @@ Replace `<TRITON-SOURCE>` with the location where Triton source code was cloned.
 
 In order to get help regarding input parameters, execute the following:
 
-`python3 gst-triton-tracking.py -h`
+```bash
+python3 gst-triton-tracking.py -h
+```
 
 In order to process an mp4 file (with h264 encoded video), execute the following:
 
-`python3 gst-triton-tracking.py -i <PATH-TO-INPUT-FILE> -o <PATH-TO-OUTPUT-FILE>`
+```bash
+python3 gst-triton-tracking.py -i <PATH-TO-INPUT-FILE> -o <PATH-TO-OUTPUT-FILE>
+```
 
-Output video, with overlays, is generated.
+If you have DeepStream with samples installed, you can execute the following:
+
+```bash
+python3 gst-triton-tracking.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
+```
+
