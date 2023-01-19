@@ -13,7 +13,7 @@ python3 gst-tracking.py -h
 
 In order to process a file:
 
-python3 gst-tracking.py -i /opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_1080p_h264.mp4
+python3 gst-tracking.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 """
 
 import argparse
