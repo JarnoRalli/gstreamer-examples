@@ -74,10 +74,10 @@ Run the following, from the `gstreamer-examples` directory, in order to start th
 mode and run one of the examples:
 
 ```bash
-export DISPLAY=:0
+export DISPLAY=:1.0
 xhost +
 docker run -i -t --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY -e XAUTHORITY -e NVIDIA_DRIVER_CAPABILITIES=all \
- -v $(pwd)/gstreamer-examples:/home/gstreamer-examples --gpus all nvidia-deepstream-samples bash
+ -v $(pwd):/home/gstreamer-examples --gpus all nvidia-deepstream-samples bash
 cd /home/gstreamer-examples/deepstream-examples/deepstream-tracking
 python3 gst-tracking.py -i /opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_1080p_h264.mp4
 ```
