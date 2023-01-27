@@ -1,9 +1,14 @@
 FROM nvcr.io/nvidia/deepstream:6.1.1-samples
 
 # To get video driver libraries at runtime (libnvidia-encode.so/libnvcuvid.so)
-ENV NVIDIA_DRIVER_CAPABILITIES $NVIDIA_DRIVER_CAPABILITIES,compute,utility,video,compute,graphics,utility
+ENV NVIDIA_DRIVER_CAPABILITIES $NVIDIA_DRIVER_CAPABILITIES,video,compute,graphics,utility
 
-# Install required packages
+# Install required packages. 
+# Some of these are probably already in the base image.
+# GL Vendor-Neutral Dispatch: libglvnd0, libgl1, libglx0 and libegl1
+# OpenGL benchmark application: glmark2
+# Mesa-utils: mesa-utils -> glxinfo | grep OpenGL
+
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
     wget python3 python3-pip python3.8-venv python-is-python3 python3-dev \
@@ -21,6 +26,12 @@ RUN apt-get update && \
     libyaml-cpp-dev \
     gcc \
     make \
+    libglvnd0 \
+    libgl1 \
+    libglx0 \
+    libegl1 \
+    glmark2 \
+    mesa-utils \
     git && \
     python3 -m pip install --upgrade build && \
     rm -rf /var/lib/apt/lists/* && \
