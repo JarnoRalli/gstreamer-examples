@@ -61,23 +61,91 @@ You should see output following (or similar) output:
 
 ## 2.1 Create the Docker Image
 
-After this you can create the docker image used in the tests.
+After this you can create the docker image used in the examples.
 
 ```bash
 cd gstreamer-examples/docker
 docker build -t nvidia-deepstream-samples -f ./Dockerfile-deepstream .
 ```
 
-## 2.2 Execute the Examples
+## 2.2 Test the Docker Image
+
+Some of the examples use GStreamer plugin `nveglglessink` for showing the results in realtime. `nveglglessink`
+depends on OpenGL, so making sure that OpenGL works inside the container is essential. Make sure that `DISPLAY`
+environment variable has been set:
+
+```bash
+env | grep DISPLAY
+```
+If it is not set, then you need to set it:
+
+```bash
+export DISPLAY=:<DISPLAY_NR>
+```
+
+Replace `<DISPLAY_NR>` with the actual display which is typically `0` or `1`.
+
+Then start the container:
+
+```bash
+xhost +
+docker run -i -t --rm \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v $(pwd):/home/gstreamer-examples \
+  -e DISPLAY=$DISPLAY \
+  -e XAUTHORITY=$XAUTHORITY \
+  -e NVIDIA_DRIVER_CAPABILITIES=all \
+  --gpus all nvidia-deepstream-samples bash
+```
+
+Then execute the following inside the container:
+
+```bash
+glxinfo | grep OpenGL
+```
+
+You should see something similar to:
+
+```bash
+OpenGL vendor string: NVIDIA Corporation
+OpenGL renderer string: NVIDIA GeForce GTX 1070/PCIe/SSE2
+OpenGL core profile version string: 4.6.0 NVIDIA 525.60.13
+OpenGL core profile shading language version string: 4.60 NVIDIA
+OpenGL core profile context flags: (none)
+OpenGL core profile profile mask: core profile
+OpenGL core profile extensions:
+OpenGL version string: 4.6.0 NVIDIA 525.60.13
+OpenGL shading language version string: 4.60 NVIDIA
+OpenGL context flags: (none)
+OpenGL profile mask: (none)
+OpenGL extensions:
+OpenGL ES profile version string: OpenGL ES 3.2 NVIDIA 525.60.13
+OpenGL ES profile shading language version string: OpenGL ES GLSL ES 3.20
+OpenGL ES profile extensions:
+```
+
+If OpenGL works as expected, you can run the following OpenGL test application inside the container:
+
+```bash
+glmark2
+```
+
+A window should pop-up, displaying a horse.
+
+## 2.3 Execute the Examples
 
 Run the following, from the `gstreamer-examples` directory, in order to start the docker container in interactive
 mode and run one of the examples:
 
 ```bash
-export DISPLAY=:1.0
 xhost +
-docker run -i -t --rm -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY -e XAUTHORITY -e NVIDIA_DRIVER_CAPABILITIES=all \
- -v $(pwd):/home/gstreamer-examples --gpus all nvidia-deepstream-samples bash
+docker run -i -t --rm \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v $(pwd):/home/gstreamer-examples \
+  -e DISPLAY=$DISPLAY \
+  -e XAUTHORITY=$XAUTHORITY \
+  -e NVIDIA_DRIVER_CAPABILITIES=all \
+  --gpus all nvidia-deepstream-samples bash
 cd /home/gstreamer-examples/deepstream-examples/deepstream-tracking
 python3 gst-tracking.py -i /opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_1080p_h264.mp4
 ```
