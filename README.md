@@ -4,6 +4,7 @@ This repository contains both GStreamer and Deepstream related examples in Pytho
 
 * [helper-package](helper-package/README.md). A package that contains helper functions and classes.
 * [deepstream-examples](deepstream-examples/README.md). Deepstream related examples.
+* [hailo-examples](hailo-examples/README.md). Hailo related examples.
 * [gst-examples](gst-examples/README.md). Gst-examples.
 * [docker](docker/README.md). Docker files for generating containers.
 
