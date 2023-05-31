@@ -10,6 +10,9 @@ List of examples:
 
 * [deepstream-tracking](deepstream-tracking/README.md)
   * 4-class object detector with tracking
+* [deepstream-tracking-parallel](deepstream-tracking-parallel/README.md)
+  * 4-class object detector with tracking
+  * Splits the input stream into two and runs two pipelines on the split streams
 * [deepstream-triton-tracking](deepstream-triton-tracking/README.md)
   * 4-class object detector with tracking, uses local version of the Triton Inference Server for inference
 
