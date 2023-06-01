@@ -45,18 +45,18 @@ There are two versions:
 In order to get help regarding input parameters, execute the following:
 
 ```bash
-python3 gst-tracking.py -h
+python3 gst-tracking-v2.py -h
 ```
 
 In order to process an mp4 file (with h264 encoded video), execute the following:
 
 ```bash
-python3 gst-tracking.py -i <PATH-TO-INPUT-FILE> -o <PATH-TO-OUTPUT-FILE>
+python3 gst-tracking-v2.py -i <PATH-TO-INPUT-FILE> -o <PATH-TO-OUTPUT-FILE>
 ```
 
 If you have DeepStream with samples installed, you can execute the following:
 
 ```bash
-python3 gst-tracking.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
+python3 gst-tracking-v2.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 ```
 

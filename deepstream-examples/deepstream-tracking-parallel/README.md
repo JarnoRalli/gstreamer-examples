@@ -11,9 +11,9 @@ nvstreammux-element into both of the processing streams, after the tee-element, 
 
 # Pipeline
 
-Description of the pipeline.
+Pipeline description.
 
-![pipeline image](./gst-tracking-parallel.pdf)
+![Image of the pipeline](./gst-tracking-parallel.pdf)
 
 # Processing Pipeline Configurations
 
