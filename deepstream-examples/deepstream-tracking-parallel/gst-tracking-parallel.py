@@ -19,6 +19,10 @@ python3 gst-tracking-parallel.py -h
 In order to process a file:
 
 python3 gst-tracking-parallel.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
+
+In order to process a file and dump a dot-file of the pipeline (you need to install graphviz):
+
+python3 gst-tracking-parallel.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 -d
 """
 
 from collections import namedtuple
@@ -243,7 +247,7 @@ class Player(object):
     A simple Player-class that processes files with h264 encoded video content.
     """
 
-    def __init__(self):
+    def __init__(self, dump_dot_file=False):
 
         # Initialize gst
         Gst.init(None)
@@ -494,6 +498,9 @@ class Player(object):
         assert osdsinkpad is not None
         osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
 
+        if dump_dot_file:
+            Gst.debug_bin_to_dot_file(self.pipeline, Gst.DebugGraphDetails.ALL, "gst-tracking-parallel")
+
     def play(self, input_file: str):
         """
 
@@ -564,9 +571,14 @@ class Player(object):
 if __name__ == '__main__':
     argParser = argparse.ArgumentParser()
     argParser.add_argument("-i", "--input_file", help="input file path", default="")
+    argParser.add_argument("-d", "--dump_dot_file", action="store_true", help="dump a dot file of the pipeline")
     args = argParser.parse_args()
 
-    player = Player()
+    if args.dump_dot_file:
+        os.environ["GST_DEBUG_DUMP_DOT_DIR"] = str(os.getcwd())
+        os.putenv('GST_DEBUG_DUMP_DIR_DIR', str(os.getcwd()))
+
+    player = Player(args.dump_dot_file)
     try:
         player.play(args.input_file)
     except Exception as e:
