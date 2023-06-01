@@ -9,6 +9,12 @@ nvstreammux-element into both of the processing streams, after the tee-element, 
 * PGIE_CLASS_ID_PERSON = 2
 * PGIE_CLASS_ID_ROADSIGN = 3
 
+# Pipeline
+
+Pipeline description.
+
+![Image of the pipeline](./gst-tracking-parallel.pdf)
+
 # Processing Pipeline Configurations
 
 ## Pipeline 1
@@ -69,5 +75,12 @@ If you have DeepStream with samples installed, you can execute the following:
 
 ```bash
 python3 gst-tracking-parallel.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
+```
+
+You can generate a Graphviz dot file of the pipeline by adding the switch `-d` when launching the example.
+The dot file can be converted into pdf as follows:
+
+```bash
+dot -Tpdf <NAME-OF-THE-DOT-FILE> -o output.pdf
 ```
 
