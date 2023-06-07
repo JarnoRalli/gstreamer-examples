@@ -1,0 +1,25 @@
+name: gst-pytorch
+channels:
+    - menpo
+    - conda-forge
+    - anaconda
+    - pytorch
+    - nvidia
+dependencies:
+    - python=3.9
+    - pytorch
+    - torchvision
+    - pytorch-cuda=11.6
+    - opencv
+    - gst-plugins-base
+    - gst-plugins-good
+    - gst-plugins-bad
+    - gstreamer
+    - gst-python
+    - pip
+    - pip:
+        - matplotlib
+        - numpy
+        - scikit-image
+
+
