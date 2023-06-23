@@ -8,6 +8,11 @@ This repository contains both GStreamer and Deepstream related examples in Pytho
 * [gst-examples](gst-examples/README.md). Gst-examples.
 * [docker](docker/README.md). Docker files for generating containers.
 
+Paul Bridger has excellent tutorials regarding how to speed up inference. For anyone interested in the subject,
+I recommend to take a look at:
+* https://paulbridger.com/posts/video-analytics-pytorch-pipeline/
+* https://paulbridger.com/posts/video-analytics-pipeline-tuning/
+
 ## Helper-Package
 
 Helpers is a Python package that contains some helper routines for creating gst-pipelines. Most of the examples, if not all, 
