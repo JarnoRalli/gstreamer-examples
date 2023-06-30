@@ -33,7 +33,8 @@ libraries and components in the host system.
 Some of the examples require C/C++ code to be built. You need the following to build the code:
 
 * C++20 compatible compiler
-* cmake >= 3.0
+* cmake >= 3.17
+  * To install latest cmake versions, take a look at [https://apt.kitware.com/](https://apt.kitware.com/)
 * deepstreamer
 * nvidia drivers / cuda
 * TensorRT
