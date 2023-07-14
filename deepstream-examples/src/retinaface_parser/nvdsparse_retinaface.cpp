@@ -42,6 +42,11 @@
 constexpr float NMS_IOU_THRESHOLD = 0.2f;
 // Percentage of padding added around the bounding boxes
 constexpr float PADDING_FACTOR = 0.1f;
+// Number of landmark points
+constexpr unsigned int NR_LANDMARKS = 5;
+// Draw landmarks
+// You need to modify the configuration so that the expected number of classes is 2: num-detected-classes=2
+constexpr unsigned int DRAW_LANDMARKS = 0;
 
 extern "C" bool NvDsInferParseCustomRetinaface(
     std::vector<NvDsInferLayerInfo> const &outputLayersInfo,
@@ -88,6 +93,15 @@ struct alignas(float) Bbox
 
     Point2D top_left;
     Point2D bottom_right;
+};
+
+/**
+ * @struct Landmark
+ * @brief A struct that defines landmarks
+ */
+struct alignas(float) Landmark
+{
+    Point2D point[NR_LANDMARKS];
 };
 
 /**
@@ -234,9 +248,17 @@ static bool NvDsInferParseRetinaface(std::vector<NvDsInferLayerInfo> const &outp
     float* class_data = (float *)itr_class->buffer;
     float* landmark_data = (float *)itr_landmark->buffer;
 
-    // Struct pointers for easier hanling
+    // Verify that bbox:es and landmarks have same number of elements
+    if(itr_bbox->inferDims.d[0] != itr_landmark->inferDims.d[0])
+    {
+        std::cerr << "Nr bbox elements (" << itr_bbox->inferDims.d[0] << ") and nr landmark elements (" << itr_landmark->inferDims.d[0] << ") need to match!" << std::endl;
+        return -1;
+    }
+
+    // Struct pointers for easier handling
     Bbox* const p_bbox = reinterpret_cast<Bbox*>(bbox_data);
-    Class* p_class = reinterpret_cast<Class*>(class_data);
+    Class* const p_class = reinterpret_cast<Class*>(class_data);
+    Landmark* const p_landmark = reinterpret_cast<Landmark*>(landmark_data);
 
     float detection_threshold = detectionParams.perClassThreshold[0];
 
@@ -245,17 +267,16 @@ static bool NvDsInferParseRetinaface(std::vector<NvDsInferLayerInfo> const &outp
     // Add the objects that pass the detection threshold to a list
     for(int i = 0; i < itr_bbox->inferDims.d[0]; i++)
     {
-        if( p_class->class2_confidence > detection_threshold )
+        if( p_class[i].class2_confidence > detection_threshold )
         {
-           final_objects.emplace_back(i, p_class->class2_confidence);
+           final_objects.emplace_back(i, p_class[i].class2_confidence);
          }
-        p_class++;
     }
 
     // NMS (Non-Maximum Suppression)
     NMS(final_objects, p_bbox, NMS_IOU_THRESHOLD);
 
-    // Add the objects that passed the NMS to the metadata
+    // Add the bboxes that passed the NMS to the metadata
     for(IndexWithProbability& elem: final_objects)
     {
         float x1 = p_bbox[elem.index].top_left.x * networkInfo.width;
@@ -278,6 +299,22 @@ static bool NvDsInferParseRetinaface(std::vector<NvDsInferLayerInfo> const &outp
         oinfo.height  = static_cast<unsigned int>(y2-y1);
         oinfo.detectionConfidence = elem.probability;
         objectList.push_back(oinfo);
+
+        // We can draw the landmarks for debugging purposes, normally this is turned off
+        if constexpr (DRAW_LANDMARKS != 0)
+        {
+            for(unsigned int i=0; i < NR_LANDMARKS; i++)
+            {
+                NvDsInferParseObjectInfo oinfo;
+                oinfo.classId = 1;
+                oinfo.left = static_cast<unsigned int>(p_landmark[elem.index].point[i].x * networkInfo.width);
+                oinfo.top = static_cast<unsigned int>(p_landmark[elem.index].point[i].y * networkInfo.height);
+                oinfo.width = 1;
+                oinfo.height = 1;
+                oinfo.detectionConfidence = elem.probability;
+                objectList.push_back(oinfo);
+            }
+        }
     }
 
     return true;

@@ -13,7 +13,17 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 option(BUILD_RETINAFACE_PARSER "Build RetinaFace perser" ON)
+option(BUILD_GST_NVINFER "Build gst-nvinfer with rectification" ON)
+option(BUILD_NVDSUTILS "Build deepstream utils" ON)
 
 if(BUILD_RETINAFACE_PARSER)
     add_subdirectory(src/retinaface_parser)
+endif()
+
+if(BUILD_GST_NVINFER)
+    add_subdirectory(src/gst-plugins/gst-nvinfer-rect)
+endif()
+
+if(BUILD_NVDSUTILS)
+    add_subdirectory(src/utils)
 endif()

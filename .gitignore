@@ -142,3 +142,10 @@ dmypy.json
 
 # TensortRT engine files
 *.engine
+
+# KDevelop
+.kdev4/
+*.kdev4
+
+# VS code
+.vscode/
