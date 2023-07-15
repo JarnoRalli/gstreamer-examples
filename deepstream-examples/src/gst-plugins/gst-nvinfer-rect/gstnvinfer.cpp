@@ -1466,19 +1466,61 @@ convert_batch_and_push_to_input_thread(GstNvInfer *nvinfer,
 
   nvtxDomainRangePop(nvinfer->nvtx_domain);
 
-  //TODO: Saves images only when we are not processing a full frame -> secondary inference
-  //TODO: here you can use NVIDIA Performance Primivies (NPP) for rectifying the images
-  if(!nvinfer->process_full_frame)
-  {
-    nvdsutils::write_nvbufsurface_to_png(mem->surf, "object");
-  }
-
   if (err != NvBufSurfTransformError_Success)
   {
     GST_ELEMENT_ERROR(nvinfer, STREAM, FAILED,
                       ("NvBufSurfTransform failed with error %d while converting buffer", err),
                       (NULL));
     return FALSE;
+  }
+  
+  //TODO: Saves images only when we are not processing a full frame -> secondary inference
+  if((!nvinfer->process_full_frame) && (mem->surf->numFilled>0))
+  {
+    // First convert the surface buffer to 8-bit gray
+    // Transformation parameters
+    NvBufSurfTransformParams surf_transform_params = {
+        .transform_flag =  NVBUFSURF_TRANSFORM_FILTER,
+        .transform_filter = NvBufSurfTransformInter_Default,
+    };
+
+    // Surface creation parameters
+    NvBufSurfaceCreateParams nvbufsurface_create_params{
+        .gpuId  = mem->surf->gpuId,
+        .width  = (gint)mem->surf->surfaceList[0].width,
+        .height = (gint)mem->surf->surfaceList[0].height,
+        .size = 0,
+        .isContiguous = true,
+        .colorFormat = NVBUF_COLOR_FORMAT_GRAY8,
+        //.colorFormat = NVBUF_COLOR_FORMAT_BGRA,//works in Jetson
+        //.colorFormat = NVBUF_COLOR_FORMAT_BGR, //does not work in Jetson
+        .layout = NVBUF_LAYOUT_PITCH,
+        .memType = NVBUF_MEM_DEFAULT
+    };
+
+    NvBufSurface *surf_gray8 = NULL;
+    
+    if(NvBufSurfaceCreate(&surf_gray8, mem->surf->batchSize, &nvbufsurface_create_params) != 0)
+    {
+        std::cerr << "Failed to allocate space for surface 'surf_gray8'" << std::endl;
+    }
+
+    surf_gray8->numFilled = mem->surf->numFilled;
+
+    int err = 0;
+    if((err = NvBufSurfTransform(mem->surf, surf_gray8, &surf_transform_params)) != NvBufSurfTransformError_Success)
+    {
+        std::cerr << "Failed to transform 'mem->surf' into 8-bit gray, error code: " << err << std::endl;
+    }else{
+        static unsigned int secondary_object_counter = 0;
+
+        std::string filename("frame_");
+        filename += std::to_string(secondary_object_counter++);
+
+        nvdsutils::write_surfgray8_to_disk(surf_gray8, filename.c_str(), false);
+    }
+
+    NvBufSurfaceDestroy(surf_gray8);
   }
 
   LockGMutex locker(nvinfer->process_lock);

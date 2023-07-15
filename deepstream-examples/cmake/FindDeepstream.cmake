@@ -32,6 +32,11 @@ find_path(Deepstream_INCLUDE_DIR NAMES nvds_version.h HINTS ${Deepstream_DIR} PA
 #----------------------------------
 find_path(Deepstream_INCLUDE_DIR_INFER_UTILS NAMES nvdsinfer_func_utils.h HINTS ${Deepstream_DIR} PATH_SUFFIXES sources/libs/nvdsinfer)
 
+#-------------------------------------------
+# Find gst-nvdspreprocess include directory
+#-------------------------------------------
+find_path(Deepstream_INCLUDE_DIR_GST_PREPROCESS NAMES nvdspreprocess_meta.h HINTS ${Deepstream_DIR} PATH_SUFFIXES sources/gst-plugins/gst-nvdspreprocess/include)
+
 #----------------------
 # Find nvinfer library
 #----------------------
@@ -78,6 +83,7 @@ FIND_PACKAGE_HANDLE_STANDARD_ARGS(Deepstream
     REQUIRED_VARS
         Deepstream_INCLUDE_DIR
         Deepstream_INCLUDE_DIR_INFER_UTILS
+        Deepstream_INCLUDE_DIR_GST_PREPROCESS
         Deepstream_INFER_LIBRARY
         Deepstream_GST_HELPER_LIBRARY
         Deepstream_GST_META_LIBRARY
@@ -88,7 +94,7 @@ FIND_PACKAGE_HANDLE_STANDARD_ARGS(Deepstream
         Deepstream_VERSION_STRING)
 
 if(Deepstream_FOUND)
-    set(Deepstream_INCLUDE_DIRS "${Deepstream_INCLUDE_DIR};${Deepstream_INCLUDE_DIR_INFER_UTILS}" CACHE STRING "Deepstream INCLUDE directories" FORCE)
+    set(Deepstream_INCLUDE_DIRS "${Deepstream_INCLUDE_DIR};${Deepstream_INCLUDE_DIR_INFER_UTILS};${Deepstream_INCLUDE_DIR_GST_PREPROCESS}" CACHE STRING "Deepstream INCLUDE directories" FORCE)
 
     if(NOT Deepstream_LIBRARIES)
         set(Deepstream_LIBRARIES ${Deepstream_INFER_LIBRARY})

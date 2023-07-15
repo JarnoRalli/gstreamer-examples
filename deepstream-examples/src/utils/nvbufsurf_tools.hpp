@@ -5,15 +5,16 @@ class NvBufSurface;
 namespace nvdsutils{
 
 /**
- * @brief Writes the images in the surf-buffer to PNG files.
+ * @brief Writes images to a file. Allocates memory in the cpu/system and copies the
+ * the images to the allocated memory, and then writes the images to a file. Works
+ * only with 8-bit gray images.
  * @param[in] surf : buffer containing the images to be written to a file.
  * @param[in] filename : base filename, buffer 0 will be written to <filename>0.png etc.
+ * @param[in] use_pitch_alignment: if true, uses surf buffers pitch when mapping cv::Mat.
+ * If false, uses OpenCV's internal alignment.
  * @return 1 indicates success.
- * @todo this function only works if the surface is already in RGB (planar)
- * color-format. In order for this to be more generic, the surface
- * should be converted into a suitable format if it's not. Colours
- * will be mangled, since OpenCV expects BGR images.
  */
-int write_nvbufsurface_to_png(NvBufSurface* surf, const char* filename);
+
+int write_surfgray8_to_disk(NvBufSurface* surf, const char* filename, bool use_pitch_alignment);
 
 }
