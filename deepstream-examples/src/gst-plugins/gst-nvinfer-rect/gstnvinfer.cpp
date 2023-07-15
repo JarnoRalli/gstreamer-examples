@@ -1517,7 +1517,13 @@ convert_batch_and_push_to_input_thread(GstNvInfer *nvinfer,
         std::string filename("frame_");
         filename += std::to_string(secondary_object_counter++);
 
+        // Reported alignment (pitch) does not match between x86_64 and arm.
+        // This is either a problem with Deepstream or OpenCV
+        #ifdef __arm__
         nvdsutils::write_surfgray8_to_disk(surf_gray8, filename.c_str(), false);
+        #else
+        nvdsutils::write_surfgray8_to_disk(surf_gray8, filename.c_str(), true);
+        #endif
     }
 
     NvBufSurfaceDestroy(surf_gray8);
