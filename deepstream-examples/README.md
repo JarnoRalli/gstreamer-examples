@@ -37,13 +37,16 @@ Some of the examples require C/C++ code to be built. You need the following to b
   * To install latest cmake version, take a look at [https://apt.kitware.com/](https://apt.kitware.com/)
 * libyaml-cpp-dev
 * Deepstream
-  * Currently supports 6.1 only
+  * deepstream 6.1
+  * deepstream 6.2
 * Nvidia drivers / cuda
 * TensorRT
 * Tested
-  * Ubuntu 20.04
+  * Ubuntu 20.04, x86_64
     * Tested and working: gcc-8, gcc-9
     * Tested and not working: gcc-7
+  * Ubuntu 20.04, Jetson Xavier NX
+    * Tested and working: gcc-9
 
 To build the code:
 
