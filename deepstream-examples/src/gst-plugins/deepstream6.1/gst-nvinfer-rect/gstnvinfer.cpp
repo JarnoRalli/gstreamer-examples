@@ -1481,7 +1481,10 @@ convert_batch_and_push_to_input_thread(GstNvInfer *nvinfer,
     // Transformation parameters
     NvBufSurfTransformParams surf_transform_params = {
         .transform_flag =  NVBUFSURF_TRANSFORM_FILTER,
+        .transform_flip = NvBufSurfTransform_None,
         .transform_filter = NvBufSurfTransformInter_Default,
+        .src_rect = nullptr,
+        .dst_rect = nullptr
     };
 
     // Surface creation parameters
