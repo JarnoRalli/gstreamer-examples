@@ -15,6 +15,8 @@ List of examples:
   * Splits the input stream into two and runs two pipelines on the split streams
 * [deepstream-triton-tracking](deepstream-triton-tracking/README.md)
   * 4-class object detector with tracking, uses local version of the Triton Inference Server for inference
+* [deepstream-retinaface](deepstream-retinaface/README.md)
+  * RetinaFace bbox- and landmark detector. Uses a custom parser
 
 You can execute the examples either:
 
@@ -26,7 +28,36 @@ libraries and components in the host system.
 
 ---
 
-# 2 Active Graphics Card
+# 2 Source Code
+
+Some of the examples require C/C++ code to be built. You need the following to build the code:
+
+* C++20 compatible compiler
+* cmake >= 3.17
+  * To install latest cmake version, take a look at [https://apt.kitware.com/](https://apt.kitware.com/)
+* Deepstream
+* Nvidia drivers / cuda
+* TensorRT
+
+To build the code:
+
+```shell
+mkdir build
+cd build
+cmake-gui ..
+make
+```
+
+Related directories:
+
+* cmake
+  * Contains custom find-package cmake scripts
+* src
+  * Contains the source code. For more information, take a look [here](./src/README.md)
+
+---
+
+# 3 Active Graphics Card
 
 Before executing any of the examples, you need to install Nvidia driver. However, some systems have several graphics 
 cards, i.e. you might have both an Nvidia GPU and an Intel integrated graphics controller.

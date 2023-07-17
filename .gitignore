@@ -136,3 +136,16 @@ dmypy.json
 
 # Gaphviz dot files
 *.dot
+
+# ONNX files
+*.onnx
+
+# TensortRT engine files
+*.engine
+
+# KDevelop
+.kdev4/
+*.kdev4
+
+# VS code
+.vscode/
