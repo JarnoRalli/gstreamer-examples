@@ -34,9 +34,9 @@ Some of the examples require C/C++ code to be built. You need the following to b
 
 * C++20 compatible compiler
 * cmake >= 3.17
-  * To install latest cmake versions, take a look at [https://apt.kitware.com/](https://apt.kitware.com/)
-* deepstreamer
-* nvidia drivers / cuda
+  * To install latest cmake version, take a look at [https://apt.kitware.com/](https://apt.kitware.com/)
+* Deepstream
+* Nvidia drivers / cuda
 * TensorRT
 
 To build the code:
@@ -47,6 +47,13 @@ cd build
 cmake-gui ..
 make
 ```
+
+Related directories:
+
+* cmake
+  * Contains custom find-package cmake scripts
+* src
+  * Contains the source code. For more information, take a look [here](./src/README.md)
 
 ---
 

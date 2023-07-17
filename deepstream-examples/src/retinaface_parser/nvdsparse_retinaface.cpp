@@ -45,7 +45,7 @@ constexpr float PADDING_FACTOR = 0.1f;
 // Number of landmark points
 constexpr unsigned int NR_LANDMARKS = 5;
 // Draw landmarks
-// You need to modify the configuration so that the expected number of classes is 2: num-detected-classes=2
+// You need to modify the nvinfer configuration so that the expected number of classes is 2 in order for this to: num-detected-classes=2
 constexpr unsigned int DRAW_LANDMARKS = 0;
 
 extern "C" bool NvDsInferParseCustomRetinaface(
