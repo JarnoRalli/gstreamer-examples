@@ -1481,7 +1481,10 @@ convert_batch_and_push_to_input_thread(GstNvInfer *nvinfer,
     // Transformation parameters
     NvBufSurfTransformParams surf_transform_params = {
         .transform_flag =  NVBUFSURF_TRANSFORM_FILTER,
+        .transform_flip = NvBufSurfTransform_None,
         .transform_filter = NvBufSurfTransformInter_Default,
+        .src_rect = nullptr,
+        .dst_rect = nullptr
     };
 
     // Surface creation parameters
@@ -1518,8 +1521,8 @@ convert_batch_and_push_to_input_thread(GstNvInfer *nvinfer,
         filename += std::to_string(secondary_object_counter++);
 
         // Reported alignment (pitch) does not match between x86_64 and arm.
-        // This is either a problem with Deepstream or OpenCV
-        #ifdef __arm__
+        // This is either a problem with Deepstream, OpenCV or CUDA
+        #if defined(__arm__) || defined (__aarch64__)
         nvdsutils::write_surfgray8_to_disk(surf_gray8, filename.c_str(), false);
         #else
         nvdsutils::write_surfgray8_to_disk(surf_gray8, filename.c_str(), true);

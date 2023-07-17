@@ -32,12 +32,21 @@ libraries and components in the host system.
 
 Some of the examples require C/C++ code to be built. You need the following to build the code:
 
-* C++20 compatible compiler
+* C++17 compatible compiler
 * cmake >= 3.17
   * To install latest cmake version, take a look at [https://apt.kitware.com/](https://apt.kitware.com/)
+* libyaml-cpp-dev
 * Deepstream
+  * deepstream 6.1
+  * deepstream 6.2
 * Nvidia drivers / cuda
 * TensorRT
+* Tested
+  * Ubuntu 20.04, x86_64
+    * Tested and working: gcc-8, gcc-9
+    * Tested and not working: gcc-7
+  * Ubuntu 20.04, Jetson Xavier NX
+    * Tested and working: gcc-9
 
 To build the code:
 
@@ -57,7 +66,7 @@ Related directories:
 
 ---
 
-# 3 Active Graphics Card
+# 3 Activate Graphics Card
 
 Before executing any of the examples, you need to install Nvidia driver. However, some systems have several graphics 
 cards, i.e. you might have both an Nvidia GPU and an Intel integrated graphics controller.

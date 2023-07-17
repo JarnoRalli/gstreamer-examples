@@ -21,11 +21,8 @@
  */
 
 // TODO:
-// 1. Add landmarks to user-type meta-data
-//  - https://docs.nvidia.com/metropolis/deepstream/sdk-api/group__gstreamer__metagroup__api.html#ga491a88faec97ebca5742facfa80c5e6a
-//  - https://docs.nvidia.com/metropolis/deepstream/5.0/dev-guide/index.html#page/DeepStream%20Plugins%20Development%20Guide/deepstream_plugin_metadata.html
-// 2. Batch handling, currently only handles a batch size of 1
-// 3. Proper error handling
+// 1. Verify that works with batch sizes > 1
+// 2. Proper error handling
 
 
 #include <vector>
@@ -195,7 +192,7 @@ std::size_t NMS(std::list<IndexWithProbability>& index_list, Bbox* p_bbox, float
         std::copy_if(index_list.begin(), index_list.end(), candidates.end(), 
             [&candidate, &min_iou_threshold, p_bbox](IndexWithProbability& elem){return IoU(p_bbox[candidate.index], p_bbox[elem.index]) > min_iou_threshold;});
         // Erase the overlapping items from the index_list
-        std::erase_if(index_list,
+        index_list.remove_if(
             [&candidate, &min_iou_threshold, p_bbox](IndexWithProbability& elem){return IoU(p_bbox[candidate.index], p_bbox[elem.index]) > min_iou_threshold;});
         // Sort the candidates, in ascending order, based on the detection probability
         candidates.sort(customLessOperator);

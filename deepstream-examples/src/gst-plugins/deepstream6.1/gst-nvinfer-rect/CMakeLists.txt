@@ -1,4 +1,4 @@
-find_package(CUDAToolkit 11 REQUIRED)
+find_package(CUDAToolkit REQUIRED)
 find_package(TensorRT REQUIRED)
 find_package(Deepstream REQUIRED)
 find_package(yaml-cpp REQUIRED)
