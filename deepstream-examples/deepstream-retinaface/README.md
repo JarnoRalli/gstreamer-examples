@@ -25,16 +25,16 @@ Set the width and height to corresponding/desired values.
 
 This pipeline has both primary and secondary networks. The primary network is a RetinaFace detector and the secondary network is a classifier network from Deepstream. The purpose
 of this example is to show how the detections from the primary network are cropped and sent to the secondary network. A modified version of the `nvinfer` gst-plugin writes the
-crops to hard drive as images. You need to build  the `nvinfer_rect` plugin first as per these [instructions](../README.md#2-source-code), and set the `GST_PLUGIN_PATH` to the directory where `libnvdsgst_infer_rect.so` is located. Tested in Ubuntu 20.04 x86:
+crops to hard drive as images. You need to build  the `nvinferrect` plugin first as per these [instructions](../README.md#2-source-code), and set the `GST_PLUGIN_PATH` to the directory where `libnvdsgst_inferrect.so` is located. Tested in Ubuntu 20.04 x86:
 
 ```shell
-gst-launch-1.0 filesrc location=<VIDEO-FILE-URL> ! decodebin ! mux.sink_0 nvstreammux width=640 height=640 batch_size=1 name=mux ! nvinfer_rect config-file-path=config_detector.txt ! nvtracker tracker-width=640 tracker-height=640 gpu-id=0 ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so ll-config-file=config_tracker_NvDCF_perf.yml enable-past-frame=1 enable-batch-process=1 ! nvinfer_rect config-file-path=config_classifier.txt ! nvvideoconvert ! nvdsosd ! queue ! nveglglessink
+gst-launch-1.0 filesrc location=<VIDEO-FILE-URL> ! decodebin ! mux.sink_0 nvstreammux width=640 height=640 batch_size=1 name=mux ! nvinferrect config-file-path=config_detector.txt ! nvtracker tracker-width=640 tracker-height=640 gpu-id=0 ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so ll-config-file=config_tracker_NvDCF_perf.yml enable-past-frame=1 enable-batch-process=1 ! nvinferrect config-file-path=config_classifier.txt ! nvvideoconvert ! nvdsosd ! queue ! nveglglessink
 ```
 
 Tested in Jetson Xavier NX with Ubuntu 20.04 aarch64:
 
 ```shell
-gst-launch-1.0 filesrc location=<VIDEO-FILE-URL> ! decodebin ! queue ! mux.sink_0 nvstreammux width=640 height=640 batch_size=1 name=mux ! nvinfer_rect config-file-path=config_detector.txt ! nvtracker tracker-width=640 tracker-height=640 gpu-id=0 ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so ll-config-file=config_tracker_NvDCF_perf.yml enable-past-frame=1 enable-batch-process=1 ! nvinfer_rect config-file-path=config_classifier.txt ! queue ! nvvideoconvert ! nvdsosd ! nvvideoconvert ! nvegltransform ! nveglglessink
+gst-launch-1.0 filesrc location=<VIDEO-FILE-URL> ! decodebin ! queue ! mux.sink_0 nvstreammux width=640 height=640 batch_size=1 name=mux ! nvinferrect config-file-path=config_detector.txt ! nvtracker tracker-width=640 tracker-height=640 gpu-id=0 ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so ll-config-file=config_tracker_NvDCF_perf.yml enable-past-frame=1 enable-batch-process=1 ! nvinferrect config-file-path=config_classifier.txt ! queue ! nvvideoconvert ! nvdsosd ! nvvideoconvert ! nvegltransform ! nveglglessink
 ```
 
 Set the width and height to corresponding/desired values.

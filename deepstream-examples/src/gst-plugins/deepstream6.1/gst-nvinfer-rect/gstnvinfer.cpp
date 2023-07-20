@@ -2687,12 +2687,12 @@ gst_nvinfer_output_loop(gpointer data)
 static gboolean
 nvinfer_plugin_init(GstPlugin *plugin)
 {
-  GST_DEBUG_CATEGORY_INIT(gst_nvinfer_debug, "nvinfer_rect", 0, "nvinfer_rect plugin");
+  GST_DEBUG_CATEGORY_INIT(gst_nvinfer_debug, "nvinferrect", 0, "nvinferrect plugin");
   gst_debug_category_set_threshold(gst_nvinfer_debug, GST_LEVEL_INFO);
 
-  return gst_element_register(plugin, "nvinfer_rect", GST_RANK_PRIMARY,
+  return gst_element_register(plugin, "nvinferrect", GST_RANK_PRIMARY,
                               GST_TYPE_NVINFER);
 }
 
-GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, nvdsgst_infer_rect,
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, nvdsgst_inferrect,
                   DESCRIPTION, nvinfer_plugin_init, "6.1", LICENSE, BINARY_PACKAGE, URL)
