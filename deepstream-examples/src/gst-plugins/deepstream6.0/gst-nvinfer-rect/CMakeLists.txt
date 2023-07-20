@@ -4,14 +4,17 @@ find_package(Deepstream REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(PkgConfig REQUIRED)
 
-pkg_search_module(GST REQUIRED gstreamer-1.0>=1.4)
+pkg_search_module(GST REQUIRED 
+    gstreamer-1.0>=1.4
+    gstreamer-base-1.0>=1.4
+    gstreamer-video-1.0>=1.4)
 
 add_library(nvdsgst_inferrect SHARED
     gstnvinfer.cpp
     gstnvinfer_allocator.cpp
     gstnvinfer_property_parser.cpp
-    gstnvinfer_meta_utils.cpp gstnvinfer_impl.cpp
-    gstnvinfer_yaml_parser.cpp
+    gstnvinfer_meta_utils.cpp
+    gstnvinfer_impl.cpp
 )
 
 target_include_directories(nvdsgst_inferrect
@@ -39,7 +42,7 @@ target_link_libraries(nvdsgst_inferrect
         TensorRT::TensorRT
         Deepstream::Deepstream
         CUDA::cudart
-        nvtx3
+        CUDA::nvToolsExt
         ${YAML_CPP_LIBRARIES}
         ${GST_LIBRARIES}
 )
