@@ -17,8 +17,8 @@ num-detected-classes=1
 output-tensor-meta=1
 
 # custom detection parser
-parse-bbox-func-name=NvDsInferParseCustomRetinaface
-custom-lib-path=../build/nvds_parsers/libnvdsparser_retinaface.so
+parse-bbox-func-name=NvDsInferParseCustomDummy
+custom-lib-path=../build/nvds_parsers/libnvdsparser_dummy.so
 net-scale-factor=1.0
 offsets=104.0;117.0;123.0
 force-implicit-batch-dim=0

@@ -53,3 +53,10 @@ To process a single image, tested in Jetson Xavier NX with Ubuntu 20.04 aarch64:
 gst-launch-1.0 filesrc location=<JPEG-FILE-URL> ! jpegdec ! nvvideoconvert ! mux.sink_0 nvstreammux width=640 height=640 batch_size=1 name=mux ! nvinfer config-file-path=config_detector.txt ! nvvideoconvert ! nvdsosd ! nvvideoconvert ! jpegenc ! filesink location = ./file.jpg
 ```
 
+--------------
+
+*  gst_nvinfer_process_objects
+  * calls: get_converted_buffer (crops, scales and converts the buffer)
+  * calls: convert_batch_and_push_to_input_thread
+*  gst_nvinfer_process_tensor_input
+*  convert_batch_and_push_to_input_thread -> write_surfgray8_to_disk

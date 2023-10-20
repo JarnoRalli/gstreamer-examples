@@ -13,18 +13,29 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-option(BUILD_RETINAFACE_PARSER "Build RetinaFace perser" ON)
+option(BUILD_NVDS_PARSERS "Build nvds parsers" ON)
 option(BUILD_GST_PLUGINS "Build gst-plugins" ON)
-option(BUILD_NVDSUTILS "Build deepstream utils" ON)
+option(BUILD_NVDS_TOOLS "Build deepstream tools" ON)
+option(BUILD_TOOLS "Build tools" ON)
+option(BUILD_DEEPSTREAM_RETINAFACE_APP "Build Deepstream RetinaFace app" ON)
 
-if(BUILD_RETINAFACE_PARSER)
-    add_subdirectory(src/retinaface_parser)
+if(BUILD_NVDS_PARSERS)
+    add_subdirectory(src/nvds_parsers)
 endif()
 
 if(BUILD_GST_PLUGINS)
     add_subdirectory(src/gst-plugins)
 endif()
 
-if(BUILD_NVDSUTILS)
-    add_subdirectory(src/utils)
+if(BUILD_NVDS_TOOLS)
+    add_subdirectory(src/nvds_tools)
 endif()
+
+if(BUILD_TOOLS)
+    add_subdirectory(src/tools)
+endif()
+
+if(BUILD_DEEPSTREAM_RETINAFACE_APP)
+    add_subdirectory(src/apps/deepstream_retinaface)
+endif()
+
