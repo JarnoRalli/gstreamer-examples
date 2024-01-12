@@ -189,13 +189,19 @@ std::size_t NMS(std::list<IndexWithProbability>& index_list, Bbox* p_bbox, float
         index_list.pop_front();
 
         // Add those bounding boxes that overlap enough with the candidate to the list of candidates
-        std::copy_if(index_list.begin(), index_list.end(), candidates.end(), 
+        std::copy_if(index_list.begin(), index_list.end(), std::back_inserter(candidates), 
             [&candidate, &min_iou_threshold, p_bbox](IndexWithProbability& elem){return IoU(p_bbox[candidate.index], p_bbox[elem.index]) > min_iou_threshold;});
+
         // Erase the overlapping items from the index_list
         index_list.remove_if(
             [&candidate, &min_iou_threshold, p_bbox](IndexWithProbability& elem){return IoU(p_bbox[candidate.index], p_bbox[elem.index]) > min_iou_threshold;});
+
+        // Add the candidate to the list of candidates
+        candidates.push_back(candidate);
+
         // Sort the candidates, in ascending order, based on the detection probability
         candidates.sort(customLessOperator);
+
         // Store the one with highest probability
         results.push_back(candidates.back());
     }
