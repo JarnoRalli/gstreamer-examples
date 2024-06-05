@@ -20,6 +20,7 @@ List of examples:
   * Uses a custom parser called [NvDsInferParseCustomRetinaface](src/retinaface_parser/nvdsparse_retinaface.cpp)
   * Shows how a modified version of the `nvinfer` plug-in can be used for writing faces, detected by the primary
   detector, to hard drive as images.
+  * Requires C++ code to be built, see instructions further down.
 
 You can execute the examples either:
 
@@ -33,7 +34,7 @@ libraries and components in the host system.
 
 # 2 Source Code
 
-Some of the examples require C/C++ code to be built. You need the following to build the code:
+[deepstream-retinaface](./deepstream-retinaface/README.md) requires C/C++ code to be built. You need the following to build the code:
 
 * C++17 compatible compiler
 * cmake >= 3.17
