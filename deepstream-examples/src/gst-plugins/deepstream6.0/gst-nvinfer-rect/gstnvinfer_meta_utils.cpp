@@ -139,8 +139,8 @@ attach_metadata_detector (GstNvInfer * nvinfer, GstMiniObject * tensor_out_objec
     text_params.font_params.font_color = (NvOSD_ColorParams) {
     1, 1, 1, 1};
 
-    if (nvinfer->output_instance_mask && obj.mask) {                             
-      float *mask = (float *)g_malloc(obj.mask_size);                            
+    if (nvinfer->output_instance_mask && obj.mask) {
+      float *mask = (float *)g_malloc(obj.mask_size);
       memcpy(mask, obj.mask, obj.mask_size);
       obj_meta->mask_params.data = mask;
       obj_meta->mask_params.size = obj.mask_size;

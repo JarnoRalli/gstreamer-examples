@@ -6,7 +6,7 @@ find_package(Deepstream REQUIRED)
 add_library(nvds_tools SHARED nvbufsurf_tools.hpp nvbufsurf_tools.cpp)
 
 target_include_directories(nvds_tools
-    PUBLIC 
+    PUBLIC
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     PRIVATE

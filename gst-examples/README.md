@@ -1,17 +1,22 @@
 # GST-EXAMPLES
 
-These are Gstreamer related examples.
+These are Gstreamer related examples. Before running the examples, it is a good idea to refresh the GStreamer plugin cache by running the following:
 
-## Requirements
+```bash
+gst-inspect-1.0
+```
+
+# 1 Requirements
 
 * Python 3.8
 * Gst-python
-* gstreamer1.0-plugins-bad (you probably need this)
+* gstreamer1.0-plugins-bad
+* gstreamer1.0-libav
 * The following are needed only for PyTorch related examples
   * torch
   * torchvision
 
-## Examples
+# 2 Examples
 
 * [gst-qtdemux-h264.py](gst-qtdemux-h264.py)
   * Plays back h264 encoded video stream from a file (e.g. mp4).

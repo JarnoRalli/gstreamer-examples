@@ -41,7 +41,7 @@ videoconvert n-threads=2 qos=false ! \
 fpsdisplaysink video-sink=xvimagesink name=hailo_display sync=false
 ```
 
-If you want to display the video in normal speed, remove `sync=false` from the `fpsdisplaysink`. 
+If you want to display the video in normal speed, remove `sync=false` from the `fpsdisplaysink`.
 
 ## Running the Example with Filesink
 

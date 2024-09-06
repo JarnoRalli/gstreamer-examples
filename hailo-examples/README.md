@@ -1,7 +1,7 @@
 # Hailo Examples
 
 This directory contains some examples regarding how to use [Hailo-8](https://hailo.ai/products/hailo-8/) accelerator and Hailo [Tappas](https://github.com/hailo-ai/tappas).
-Tappas can be used for creating image processing pipelines using GStreamer with Hailo accelerators. 
+Tappas can be used for creating image processing pipelines using GStreamer with Hailo accelerators.
 
 ---
 
@@ -14,7 +14,7 @@ Following is a list of Hailo related examples:
 
 ---
 
-# 3 How to Run the Examples
+# 2 How to Run the Examples
 
 All the examples have been tested using the following:
 

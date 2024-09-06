@@ -75,7 +75,7 @@ struct alignas(float) Bbox
 {
     Bbox() : top_left(Point2D()), bottom_right(Point2D())
     {}
-    
+
     Bbox(Point2D top_left_in, Point2D bottom_right_in) : top_left(top_left_in), bottom_right(bottom_right_in)
     {}
 
@@ -141,7 +141,7 @@ float IoU(Bbox const& a, Bbox const& b)
     // Maximum coordinates of top-left point
     float x_min = std::max(a.top_left.x, b.top_left.x);
     float y_min = std::max(a.top_left.y, b.top_left.y);
-    
+
     // Width and height for intersection
     float w = std::max(0.0f, x_max - x_min);
     float h = std::max(0.0f, y_max - y_min);
@@ -189,7 +189,7 @@ std::size_t NMS(std::list<IndexWithProbability>& index_list, Bbox* p_bbox, float
         index_list.pop_front();
 
         // Add those bounding boxes that overlap enough with the candidate to the list of candidates
-        std::copy_if(index_list.begin(), index_list.end(), std::back_inserter(candidates), 
+        std::copy_if(index_list.begin(), index_list.end(), std::back_inserter(candidates),
             [&candidate, &min_iou_threshold, p_bbox](IndexWithProbability& elem){return IoU(p_bbox[candidate.index], p_bbox[elem.index]) > min_iou_threshold;});
 
         // Erase the overlapping items from the index_list
@@ -229,7 +229,7 @@ static bool NvDsInferParseRetinaface(std::vector<NvDsInferLayerInfo> const &outp
         std::cerr << "Could not find an output layer called 'bboxes'" << std::endl;
         return false;
     }
-    
+
     // Look for the classes layer
     auto itr_class = std::find_if(outputLayersInfo.begin(), outputLayersInfo.end(), [](const NvDsInferLayerInfo& obj){ return std::string(obj.layerName) == "classes";});
     if(itr_class == outputLayersInfo.end())
@@ -237,7 +237,7 @@ static bool NvDsInferParseRetinaface(std::vector<NvDsInferLayerInfo> const &outp
         std::cerr << "Could not find an output layer called 'classes'" << std::endl;
         return false;
     }
-    
+
     // Look for the landmarks layer
     auto itr_landmark = std::find_if(outputLayersInfo.begin(), outputLayersInfo.end(), [](const NvDsInferLayerInfo& obj){ return std::string(obj.layerName) == "landmarks";});
     if(itr_landmark == outputLayersInfo.end())

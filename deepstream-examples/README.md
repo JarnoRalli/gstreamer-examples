@@ -1,6 +1,11 @@
 # DEEPSTREAM EXAMPLES
 
 This directory contains DeepStream related examples. Example code, along with configuration files etc., are placed inside sub-directories.
+Before running the examples, it is a good idea to refresh the GStreamer plugin cache by running the following:
+
+```bash
+gst-inspect-1.0
+```
 
 ---
 
@@ -76,7 +81,7 @@ Related directories:
 
 # 3 Activating Nvidia GPU
 
-Before executing any of the examples, you need to install Nvidia driver. However, some systems have several graphics 
+Before executing any of the examples, you need to install Nvidia driver. However, some systems have several graphics
 cards, i.e. you might have both an Nvidia GPU and an Intel integrated graphics controller.
 You can verify this by running the following command:
 
@@ -113,7 +118,7 @@ sudo prime-select <CARD>
 
 ---
 
-# 3 Running the Examples Using Docker
+# 4 Running the Examples Using Docker
 
 This is the preferred way to run the tests. Before creating the docker image, you need to install Nvidia's Container Toolkit. Instructions can be found here:
 
@@ -139,7 +144,7 @@ You should see output following (or similar) output:
 | 32%   38C    P0    34W / 151W |    735MiB /  8192MiB |      0%      Default |
 |                               |                      |                  N/A |
 +-------------------------------+----------------------+----------------------+
-                                                                               
+
 +-----------------------------------------------------------------------------+
 | Processes:                                                                  |
 |  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
@@ -149,7 +154,7 @@ You should see output following (or similar) output:
 
 ```
 
-## 3.1 Create the Docker Image
+## 4.1 Create the Docker Image
 
 After this you can create the docker image used in the examples.
 
@@ -158,7 +163,7 @@ cd gstreamer-examples/docker
 docker build -t nvidia-deepstream-samples -f ./Dockerfile-deepstream .
 ```
 
-## 3.2 Test the Docker Image
+## 4.2 Test the Docker Image
 
 Some of the examples use GStreamer plugin `nveglglessink` for showing the results in realtime. `nveglglessink`
 depends on OpenGL, so making sure that OpenGL works inside the container is essential. Make sure that `DISPLAY`
@@ -222,7 +227,7 @@ glmark2
 
 A window should pop-up, displaying a horse.
 
-## 3.3 Execute the Examples
+## 4.3 Execute the Examples
 
 Run the following, from the `gstreamer-examples` directory, in order to start the docker container in interactive
 mode and run one of the examples:
@@ -240,9 +245,12 @@ cd /home/gstreamer-examples/deepstream-examples/deepstream-tracking
 python3 gst-tracking.py -i /opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_1080p_h264.mp4
 ```
 
+When starting the Docker container with the above command, the switch `-v $(pwd):/home/gstreamer-examples` maps the local directory `$(pwd)`
+to a directory `/home/gstreamer-examples` inside the container.
+
 ---
 
-# 4 Running the Examples Without Docker
+# 5 Running the Examples Without Docker
 
 If you're not using Docker to run the examples, you need to install DeepStream, and Triton Inference Server if you are planning on
 executing Triton related examples as well, in the host system. Due to the complexity of Nvidia's libraries, depending on the system your're using,
@@ -251,9 +259,9 @@ are for:
 
 * Ubuntu 20.04
 
-## 4.1 Install DeepStream SDK
+## 5.1 Install DeepStream SDK
 
-Follow these instructions for installing the DeepStream SDK 
+Follow these instructions for installing the DeepStream SDK
 [https://docs.nvidia.com/metropolis/deepstream/dev-guide/text/DS_Quickstart.html](https://docs.nvidia.com/metropolis/deepstream/dev-guide/text/DS_Quickstart.html).
 
 After installation, verify that `nvinfer` plug-in can be found
@@ -270,7 +278,7 @@ sudo /opt/nvidia/deepstream/deepstream/install.sh
 
 And then reboot.
 
-## 4.2 Install DeepStream Python Bindings
+## 5.2 Install DeepStream Python Bindings
 
 Information regarding DeepStream Python bindings can be found from here [https://github.com/NVIDIA-AI-IOT/deepstream_python_apps](https://github.com/NVIDIA-AI-IOT/deepstream_python_apps).
 You can download ready to install packages from here [https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/releases](https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/releases).
@@ -283,7 +291,7 @@ pip3 install pyds-1.1.4-py3-none-linux_x86_64.whl
 Replace `pyds-1.1.4-py3-none-linux_x86_64.whl` with the version that you downloaded.
 
 
-## 4.3 Install Triton Inference Server
+## 5.3 Install Triton Inference Server
 
 Before executing those examples that use Triton, you first need to install it locally. First install the following package(s):
 
@@ -309,7 +317,7 @@ cd build/install
 sudo cp -vr ./backends /opt/tritonserver
 ```
 
-## 4.4 Set Environment Variables
+## 5.4 Set Environment Variables
 
 Triton libraries need to be discoverable by the the dynamic library loader:
 
@@ -337,7 +345,7 @@ If it cannot be found, but it is installed, you can add it to path:
 export PATH=${PATH}:/usr/src/tensorrt/bin/
 ```
 
-## 4.5 Build the Model Repo
+## 5.5 Build the Model Repo
 
 We will use the models shipped with the DeepStream SDK. However, first make sure that `trtexec` is found:
 
@@ -353,7 +361,7 @@ cd /opt/nvidia/deepstream/deepstream/samples
 ```
 
 
-## 4.6 Testing Triton Installation
+## 5.6 Testing Triton Installation
 
 Test that the `nvinferenceserver` plugin can be found
 

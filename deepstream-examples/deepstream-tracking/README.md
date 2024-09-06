@@ -27,7 +27,7 @@ There are two versions:
 * [gst-tracking.py](gst-tracking.py)
   * This version draws bounding box and object information using deepstream's native way.
 * [gst-tracking-v2.py](gst-tracking-v2.py)
-  * This version draws the information so that bounding- and text boxes for smaller objects are drawn first. 
+  * This version draws the information so that bounding- and text boxes for smaller objects are drawn first.
   Everything else being the same, smaller objects tend to be further away from the camera. Also bounding bbox colors are different for each object type.
 
 ## Requirements

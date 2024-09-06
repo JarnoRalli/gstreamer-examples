@@ -3,7 +3,7 @@ FROM nvcr.io/nvidia/deepstream:6.0.1-samples
 # To get video driver libraries at runtime (libnvidia-encode.so/libnvcuvid.so)
 ENV NVIDIA_DRIVER_CAPABILITIES $NVIDIA_DRIVER_CAPABILITIES,video,compute,graphics,utility
 
-# Install required packages. 
+# Install required packages.
 # Some of these are probably already in the base image.
 # GL Vendor-Neutral Dispatch: libglvnd0, libgl1, libglx0 and libegl1
 # OpenGL benchmark application: glmark2

@@ -59,7 +59,7 @@ int write_surfgray8_to_disk(NvBufSurface* surf, const char* filename, bool use_p
     {
         std::string bufferFileName = fileName + "_object_" + std::to_string(i) + ".bmp";
         cv::Mat mapped;
-        
+
         if(use_pitch_alignment)
         {   mapped = cv::Mat(drawMe->surfaceList[i].height, drawMe->surfaceList[i].width, CV_8UC1, drawMe->surfaceList[i].dataPtr, drawMe->surfaceList[i].pitch);
         }else{

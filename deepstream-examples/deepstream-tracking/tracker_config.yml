@@ -62,7 +62,7 @@ NvDCF:
   minMatchingScore4SizeSimilarity: 0.5    # Min bbox size similarity score
   minMatchingScore4Iou: 0.1       # Min IOU score
   minMatchingScore4VisualSimilarity: 0.2    # Min visual similarity score
-  minTrackingConfidenceDuringInactive: 1.0  # Min tracking confidence during INACTIVE period. If tracking confidence is higher than this, then tracker will still output results until next detection 
+  minTrackingConfidenceDuringInactive: 1.0  # Min tracking confidence during INACTIVE period. If tracking confidence is higher than this, then tracker will still output results until next detection
 
   # [Data Association] Weights for each matching score term
   matchingScoreWeight4VisualSimilarity: 0.8  # Weight for the visual similarity (in terms of correlation response ratio)

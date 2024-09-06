@@ -1410,7 +1410,7 @@ convert_batch_and_push_to_input_thread (GstNvInfer *nvinfer,
     };
 
     NvBufSurface *surf_gray8 = NULL;
-    
+
     if(NvBufSurfaceCreate(&surf_gray8, mem->surf->batchSize, &nvbufsurface_create_params) != 0)
     {
         std::cerr << "Failed to allocate space for surface 'surf_gray8'" << std::endl;
