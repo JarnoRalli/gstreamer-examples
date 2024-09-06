@@ -7,22 +7,10 @@ python retinaface.py --help
 
 import sys
 import gi
-import numpy as np
 import argparse
-import contextlib
-import time
-from functools import partial
 
-gi.require_version('Gst', '1.0')
-from gi.repository import Gst
-
-#@contextlib.contextmanager
-#def nvtx_range(msg):
-#    depth = torch.cuda.nvtx.range_push(msg)
-#    try:
-#        yield depth
-#    finally:
-#        torch.cuda.nvtx.range_pop()
+gi.require_version("Gst", "1.0")
+from gi.repository import Gst  # noqa: E402
 
 
 if __name__ == "__main__":
@@ -35,7 +23,7 @@ if __name__ == "__main__":
     if args.input_file == "":
         sys.exit("No input file has been given!")
 
-    pipeline_definition = f'''
+    pipeline_definition = f"""
         filesrc location={args.input_file} !
         qtdemux !
         queue !
@@ -46,7 +34,7 @@ if __name__ == "__main__":
         nvvideoconvert !
         nvdsosd !
         queue !
-        nveglglessink'''
+        nveglglessink"""
 
     print("--- PIPELINE DEFINITION ---")
     print(pipeline_definition)
@@ -57,9 +45,11 @@ if __name__ == "__main__":
 
     try:
         while True:
-            msg = pipeline.get_bus().timed_pop_filtered(Gst.SECOND, Gst.MessageType.EOS | Gst.MessageType.ERROR)
+            msg = pipeline.get_bus().timed_pop_filtered(
+                Gst.SECOND, Gst.MessageType.EOS | Gst.MessageType.ERROR
+            )
             if msg:
-                text = msg.get_structure().to_string() if msg.get_structure() else ''
+                text = msg.get_structure().to_string() if msg.get_structure() else ""
                 msg_type = Gst.message_type_get_name(msg.type)
                 print(f"{msg.src.name}: [{msg.type}] {text}")
                 break

@@ -1473,7 +1473,7 @@ convert_batch_and_push_to_input_thread(GstNvInfer *nvinfer,
                       (NULL));
     return FALSE;
   }
-  
+
   //TODO: Saves images only when we are not processing a full frame -> secondary inference
   if((!nvinfer->process_full_frame) && (mem->surf->numFilled>0))
   {
@@ -1502,7 +1502,7 @@ convert_batch_and_push_to_input_thread(GstNvInfer *nvinfer,
     };
 
     NvBufSurface *surf_gray8 = NULL;
-    
+
     if(NvBufSurfaceCreate(&surf_gray8, mem->surf->batchSize, &nvbufsurface_create_params) != 0)
     {
         std::cerr << "Failed to allocate space for surface 'surf_gray8'" << std::endl;
@@ -1865,7 +1865,7 @@ gst_nvinfer_process_objects(GstNvInfer *nvinfer, GstBuffer *inbuf,
 
       bool needs_infer = should_infer_object(nvinfer, inbuf, object_meta, frame_num,
                                              obj_history.get());
-      
+
       if (!needs_infer)
       {
         /* Should not infer again. */

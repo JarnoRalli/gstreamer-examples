@@ -1,7 +1,7 @@
 import gi
 
-gi.require_version('Gst', '1.0')
-from gi.repository import Gst, GLib, GObject
+gi.require_version("Gst", "1.0")
+from gi.repository import Gst  # noqa: E402
 
 
 def create_element(gst_elem: str, name: str):
@@ -35,14 +35,23 @@ def link_elements(elements: list) -> None:
     assert len(elements) >= 2
 
     for idx, x in enumerate(elements[:-1]):
-        print(f"Linking element {elements[idx].get_name()} -> {elements[idx + 1].get_name()}...", end="")
-        assert isinstance(elements[idx], Gst.Element), "elements[idx] must be of type Gst.Element"
-        assert isinstance(elements[idx + 1], Gst.Element), "elements[idx+1] must be of type Gst.Element"
+        print(
+            f"Linking element {elements[idx].get_name()} -> {elements[idx + 1].get_name()}...",
+            end="",
+        )
+        assert isinstance(
+            elements[idx], Gst.Element
+        ), "elements[idx] must be of type Gst.Element"
+        assert isinstance(
+            elements[idx + 1], Gst.Element
+        ), "elements[idx+1] must be of type Gst.Element"
         if elements[idx].link(elements[idx + 1]):
             print("done")
         else:
             print("failed")
-            raise RuntimeError(f"Failed to link: {elements[idx].get_name()} -> {elements[idx + 1].get_name()}")
+            raise RuntimeError(
+                f"Failed to link: {elements[idx].get_name()} -> {elements[idx + 1].get_name()}"
+            )
 
 
 class PadAddedLinkFunctor:
@@ -55,7 +64,9 @@ class PadAddedLinkFunctor:
     def __init__(self):
         self.connections = []
 
-    def register(self, new_pad: str, target_element: Gst.Element, target_sink_name: str) -> None:
+    def register(
+        self, new_pad: str, target_element: Gst.Element, target_sink_name: str
+    ) -> None:
         """
         Registers linking information indicating how new pads should be linked to subsequent elements.
 
@@ -74,8 +85,12 @@ class PadAddedLinkFunctor:
         """
 
         assert isinstance(new_pad, str), "'new_pad' must be of type str"
-        assert isinstance(target_element, Gst.Element), "'target_element' must be of type Gst.Element"
-        assert isinstance(target_sink_name, str), "'target_sink_name' must be of type str"
+        assert isinstance(
+            target_element, Gst.Element
+        ), "'target_element' must be of type Gst.Element"
+        assert isinstance(
+            target_sink_name, str
+        ), "'target_sink_name' must be of type str"
 
         self.connections.append((new_pad, target_element, target_sink_name))
 
@@ -104,11 +119,16 @@ class PadAddedLinkFunctor:
             target_sink_name = self.connections[index][2]
             sink_pad = target_element.get_static_pad(target_sink_name)
 
-            assert sink_pad, f"'{target_element.get_name()}' has no static pad called '{target_sink_name}'"
+            assert (
+                sink_pad
+            ), f"'{target_element.get_name()}' has no static pad called '{target_sink_name}'"
 
             if not sink_pad.is_linked():
-                print(f"Linking '{element_name}:{pad_name}' \
-                -> '{target_element.get_name()}:{sink_pad.get_name()}'...", end="")
+                print(
+                    f"Linking '{element_name}:{pad_name}' \
+                -> '{target_element.get_name()}:{sink_pad.get_name()}'...",
+                    end="",
+                )
                 ret = pad.link(sink_pad)
                 if ret == Gst.PadLinkReturn.OK:
                     print("done")
@@ -116,6 +136,8 @@ class PadAddedLinkFunctor:
                     print("error")
 
         elif len(index) > 1:
-            raise RuntimeError(f"Pad '{pad_name}' corresponds to several link-definitions, cannot continue")
+            raise RuntimeError(
+                f"Pad '{pad_name}' corresponds to several link-definitions, cannot continue"
+            )
         else:
             return

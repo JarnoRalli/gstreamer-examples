@@ -4,7 +4,7 @@ find_package(Deepstream REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(PkgConfig REQUIRED)
 
-pkg_search_module(GST REQUIRED 
+pkg_search_module(GST REQUIRED
     gstreamer-1.0>=1.4
     gstreamer-base-1.0>=1.4
     gstreamer-video-1.0>=1.4)
@@ -18,7 +18,7 @@ add_library(nvdsgst_inferrect SHARED
 )
 
 target_include_directories(nvdsgst_inferrect
-    PUBLIC 
+    PUBLIC
         $<INSTALL_INTERFACE:include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
     PRIVATE

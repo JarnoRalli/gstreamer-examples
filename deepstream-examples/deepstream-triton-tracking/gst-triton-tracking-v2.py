@@ -29,12 +29,11 @@ import os
 import sys
 import signal
 import pyds
-from helpers import *
-
+from helpers import gsthelpers
 import gi
 
-gi.require_version('Gst', '1.0')
-from gi.repository import Gst, GLib, GObject
+gi.require_version("Gst", "1.0")
+from gi.repository import Gst, GLib  # noqa: E402
 
 PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
@@ -42,8 +41,10 @@ PGIE_CLASS_ID_PERSON = 2
 PGIE_CLASS_ID_ROADSIGN = 3
 past_tracking_meta = [0]
 
-MetaObject = namedtuple('MetaObject', ['left', 'top', 'height', 'width', 'area', 'id', 'text', 'class_id'])
-ColorObject = namedtuple('ColorObject', ['red', 'green', 'blue', 'alpha'])
+MetaObject = namedtuple(
+    "MetaObject", ["left", "top", "height", "width", "area", "id", "text", "class_id"]
+)
+ColorObject = namedtuple("ColorObject", ["red", "green", "blue", "alpha"])
 
 ColorList = {
     PGIE_CLASS_ID_VEHICLE: ColorObject(red=1.0, green=0.0, blue=0.0, alpha=1.0),
@@ -60,7 +61,7 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
         PGIE_CLASS_ID_VEHICLE: 0,
         PGIE_CLASS_ID_PERSON: 0,
         PGIE_CLASS_ID_BICYCLE: 0,
-        PGIE_CLASS_ID_ROADSIGN: 0
+        PGIE_CLASS_ID_ROADSIGN: 0,
     }
     num_rects = 0
     gst_buffer = info.get_buffer()
@@ -103,10 +104,10 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
                 height=obj_meta.tracker_bbox_info.org_bbox_coords.height,
                 width=obj_meta.tracker_bbox_info.org_bbox_coords.width,
                 area=obj_meta.tracker_bbox_info.org_bbox_coords.height
-                     * obj_meta.tracker_bbox_info.org_bbox_coords.width,
+                * obj_meta.tracker_bbox_info.org_bbox_coords.width,
                 id=obj_meta.object_id,
                 text=pyds.get_string(obj_meta.text_params.display_text),
-                class_id=obj_meta.class_id
+                class_id=obj_meta.class_id,
             )
             meta_list.append(obj)
 
@@ -123,7 +124,7 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
                 break
 
         # Sort the meta_list so that objects further back are drawn first
-        meta_list_sorted = sorted(meta_list, key=attrgetter('area'))
+        meta_list_sorted = sorted(meta_list, key=attrgetter("area"))
 
         # Acquiring a display meta object. The memory ownership remains in
         # the C code so downstream plugins can still access it. Otherwise
@@ -151,12 +152,14 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
 
         # Display information regarding number of objects detected
         idx = display_meta.num_labels - 1
-        display_meta.text_params[idx].display_text = f"Frame number={frame_number}, " \
-                                                     f"nr objects={num_rects}, " \
-                                                     f"vehicles={obj_counter[PGIE_CLASS_ID_VEHICLE]}, " \
-                                                     f"bicycles={obj_counter[PGIE_CLASS_ID_BICYCLE]}, " \
-                                                     f"persons={obj_counter[PGIE_CLASS_ID_PERSON]}, " \
-                                                     f"roadsigns={obj_counter[PGIE_CLASS_ID_ROADSIGN]}"
+        display_meta.text_params[idx].display_text = (
+            f"Frame number={frame_number}, "
+            f"nr objects={num_rects}, "
+            f"vehicles={obj_counter[PGIE_CLASS_ID_VEHICLE]}, "
+            f"bicycles={obj_counter[PGIE_CLASS_ID_BICYCLE]}, "
+            f"persons={obj_counter[PGIE_CLASS_ID_PERSON]}, "
+            f"roadsigns={obj_counter[PGIE_CLASS_ID_ROADSIGN]}"
+        )
         display_meta.text_params[idx].x_offset = 10
         display_meta.text_params[idx].y_offset = 14
         display_meta.text_params[idx].font_params.font_name = "Serif"
@@ -205,14 +208,20 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
                 user_meta = pyds.NvDsUserMeta.cast(l_user.data)
             except StopIteration:
                 break
-            if user_meta and user_meta.base_meta.meta_type == pyds.NvDsMetaType.NVDS_TRACKER_PAST_FRAME_META:
+            if (
+                user_meta
+                and user_meta.base_meta.meta_type
+                == pyds.NvDsMetaType.NVDS_TRACKER_PAST_FRAME_META
+            ):
                 try:
                     # Note that user_meta.user_meta_data needs a cast to pyds.NvDsPastFrameObjBatch
                     # The casting is done by pyds.NvDsPastFrameObjBatch.cast()
                     # The casting also keeps ownership of the underlying memory
                     # in the C code, so the Python garbage collector will leave
                     # it alone
-                    pPastFrameObjBatch = pyds.NvDsPastFrameObjBatch.cast(user_meta.user_meta_data)
+                    pPastFrameObjBatch = pyds.NvDsPastFrameObjBatch.cast(
+                        user_meta.user_meta_data
+                    )
                 except StopIteration:
                     break
                 for trackobj in pyds.NvDsPastFrameObjBatch.list(pPastFrameObjBatch):
@@ -224,13 +233,13 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
                         print("classId=", pastframeobj.classId)
                         print("objLabel=", pastframeobj.objLabel)
                         for objlist in pyds.NvDsPastFrameObjList.list(pastframeobj):
-                            print('frameNum:', objlist.frameNum)
-                            print('tBbox.left:', objlist.tBbox.left)
-                            print('tBbox.width:', objlist.tBbox.width)
-                            print('tBbox.top:', objlist.tBbox.top)
-                            print('tBbox.right:', objlist.tBbox.height)
-                            print('confidence:', objlist.confidence)
-                            print('age:', objlist.age)
+                            print("frameNum:", objlist.frameNum)
+                            print("tBbox.left:", objlist.tBbox.left)
+                            print("tBbox.width:", objlist.tBbox.width)
+                            print("tBbox.top:", objlist.tBbox.top)
+                            print("tBbox.right:", objlist.tBbox.height)
+                            print("confidence:", objlist.confidence)
+                            print("age:", objlist.age)
             try:
                 l_user = l_user.next
             except StopIteration:
@@ -267,12 +276,22 @@ class Player(object):
         self.h264_parser = gsthelpers.create_element("h264parse", "h264-parser")
         self.h264_decoder = gsthelpers.create_element("nvv4l2decoder", "h264-decoder")
         self.stream_muxer = gsthelpers.create_element("nvstreammux", "stream-muxer")
-        self.primary_inference = gsthelpers.create_element("nvinferserver", "primary-inference")
+        self.primary_inference = gsthelpers.create_element(
+            "nvinferserver", "primary-inference"
+        )
         self.tracker = gsthelpers.create_element("nvtracker", "tracker")
-        self.secondary1_inference = gsthelpers.create_element("nvinferserver", "secondary1-inference")
-        self.secondary2_inference = gsthelpers.create_element("nvinferserver", "secondary2-inference")
-        self.secondary3_inference = gsthelpers.create_element("nvinferserver", "secondary3-inference")
-        self.video_converter = gsthelpers.create_element("nvvideoconvert", "video-converter")
+        self.secondary1_inference = gsthelpers.create_element(
+            "nvinferserver", "secondary1-inference"
+        )
+        self.secondary2_inference = gsthelpers.create_element(
+            "nvinferserver", "secondary2-inference"
+        )
+        self.secondary3_inference = gsthelpers.create_element(
+            "nvinferserver", "secondary3-inference"
+        )
+        self.video_converter = gsthelpers.create_element(
+            "nvvideoconvert", "video-converter"
+        )
         self.osd = gsthelpers.create_element("nvdsosd", "nvidia-bounding-box-draw")
         self.tee = gsthelpers.create_element("tee", "tee")
         # Video sink branch
@@ -280,10 +299,18 @@ class Player(object):
         self.video_sink = gsthelpers.create_element("nveglglessink", "nvvideo-renderer")
         # File sink branch
         self.filesink_queue = gsthelpers.create_element("queue", "filesink-queue")
-        self.file_sink_converter = gsthelpers.create_element("nvvideoconvert", "file-sink-videoconverter")
-        self.file_sink_encoder = gsthelpers.create_element("x264enc", "file-sink-encoder")
-        self.file_sink_parser = gsthelpers.create_element("h264parse", "file-sink-parser")
-        self.file_sink_muxer = gsthelpers.create_element("matroskamux", "file-sink-muxer")
+        self.file_sink_converter = gsthelpers.create_element(
+            "nvvideoconvert", "file-sink-videoconverter"
+        )
+        self.file_sink_encoder = gsthelpers.create_element(
+            "x264enc", "file-sink-encoder"
+        )
+        self.file_sink_parser = gsthelpers.create_element(
+            "h264parse", "file-sink-parser"
+        )
+        self.file_sink_muxer = gsthelpers.create_element(
+            "matroskamux", "file-sink-muxer"
+        )
         self.file_sink = gsthelpers.create_element("filesink", "file-sink")
 
         # Add elements to the pipeline
@@ -324,38 +351,54 @@ class Player(object):
         self.file_sink.set_property("async", False)
 
         # Set properties for the inference engines
-        self.primary_inference.set_property("config-file-path", "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt")
-        self.secondary1_inference.set_property("config-file-path", "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carcolor.txt")
-        self.secondary2_inference.set_property("config-file-path", "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carmake.txt")
-        self.secondary3_inference.set_property("config-file-path", "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_vehicletypes.txt")
+        self.primary_inference.set_property(
+            "config-file-path",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt",
+        )
+        self.secondary1_inference.set_property(
+            "config-file-path",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carcolor.txt",
+        )
+        self.secondary2_inference.set_property(
+            "config-file-path",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carmake.txt",
+        )
+        self.secondary3_inference.set_property(
+            "config-file-path",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_vehicletypes.txt",
+        )
 
         # Set properties for the tracker
         tracker_config = configparser.ConfigParser()
         tracker_config.read("dstest2_tracker_config.txt")
         tracker_config.sections()
 
-        for key in tracker_config['tracker']:
-            if key == 'tracker-width':
-                tracker_width = tracker_config.getint('tracker', key)
-                self.tracker.set_property('tracker-width', tracker_width)
-            if key == 'tracker-height':
-                tracker_height = tracker_config.getint('tracker', key)
-                self.tracker.set_property('tracker-height', tracker_height)
-            if key == 'gpu-id':
-                tracker_gpu_id = tracker_config.getint('tracker', key)
-                self.tracker.set_property('gpu_id', tracker_gpu_id)
-            if key == 'll-lib-file':
-                tracker_ll_lib_file = tracker_config.get('tracker', key)
-                self.tracker.set_property('ll-lib-file', tracker_ll_lib_file)
-            if key == 'll-config-file':
-                tracker_ll_config_file = tracker_config.get('tracker', key)
-                self.tracker.set_property('ll-config-file', tracker_ll_config_file)
-            if key == 'enable-batch-process':
-                tracker_enable_batch_process = tracker_config.getint('tracker', key)
-                self.tracker.set_property('enable_batch_process', tracker_enable_batch_process)
-            if key == 'enable-past-frame':
-                tracker_enable_past_frame = tracker_config.getint('tracker', key)
-                self.tracker.set_property('enable_past_frame', tracker_enable_past_frame)
+        for key in tracker_config["tracker"]:
+            if key == "tracker-width":
+                tracker_width = tracker_config.getint("tracker", key)
+                self.tracker.set_property("tracker-width", tracker_width)
+            if key == "tracker-height":
+                tracker_height = tracker_config.getint("tracker", key)
+                self.tracker.set_property("tracker-height", tracker_height)
+            if key == "gpu-id":
+                tracker_gpu_id = tracker_config.getint("tracker", key)
+                self.tracker.set_property("gpu_id", tracker_gpu_id)
+            if key == "ll-lib-file":
+                tracker_ll_lib_file = tracker_config.get("tracker", key)
+                self.tracker.set_property("ll-lib-file", tracker_ll_lib_file)
+            if key == "ll-config-file":
+                tracker_ll_config_file = tracker_config.get("tracker", key)
+                self.tracker.set_property("ll-config-file", tracker_ll_config_file)
+            if key == "enable-batch-process":
+                tracker_enable_batch_process = tracker_config.getint("tracker", key)
+                self.tracker.set_property(
+                    "enable_batch_process", tracker_enable_batch_process
+                )
+            if key == "enable-past-frame":
+                tracker_enable_past_frame = tracker_config.getint("tracker", key)
+                self.tracker.set_property(
+                    "enable_past_frame", tracker_enable_past_frame
+                )
 
         # --- LINK IMAGE PROCESSING ---
         # Link video input and inference as follows:
@@ -373,10 +416,12 @@ class Player(object):
         demuxer_pad_added = gsthelpers.PadAddedLinkFunctor()
         demuxer_pad_added.register("video_", self.video_queue, "sink")
 
-        assert self.demuxer.connect("pad-added", demuxer_pad_added) == True
+        assert self.demuxer.connect("pad-added", demuxer_pad_added) is not None
 
         # Link video pipeline
-        gsthelpers.link_elements([self.video_queue, self.h264_parser, self.h264_decoder])
+        gsthelpers.link_elements(
+            [self.video_queue, self.h264_parser, self.h264_decoder]
+        )
 
         # Link decoder to streammux
         source = self.h264_decoder.get_static_pad("src")
@@ -386,15 +431,19 @@ class Player(object):
         assert source.link(sink) == Gst.PadLinkReturn.OK
 
         # Link inference, tracker and visualization
-        gsthelpers.link_elements([self.stream_muxer,
-                                  self.primary_inference,
-                                  self.tracker,
-                                  self.secondary1_inference,
-                                  self.secondary2_inference,
-                                  self.secondary3_inference,
-                                  self.video_converter,
-                                  self.osd,
-                                  self.tee])
+        gsthelpers.link_elements(
+            [
+                self.stream_muxer,
+                self.primary_inference,
+                self.tracker,
+                self.secondary1_inference,
+                self.secondary2_inference,
+                self.secondary3_inference,
+                self.video_converter,
+                self.osd,
+                self.tee,
+            ]
+        )
 
         # --- LINK OUTPUT BRANCHES ---
         # We have two outputs, videosink and a filesink, as follows:
@@ -420,10 +469,14 @@ class Player(object):
         assert sink is not None
         assert src.link(sink) == Gst.PadLinkReturn.OK
 
-        gsthelpers.link_elements([self.filesink_queue,
-                                  self.file_sink_converter,
-                                  self.file_sink_encoder,
-                                  self.file_sink_parser])
+        gsthelpers.link_elements(
+            [
+                self.filesink_queue,
+                self.file_sink_converter,
+                self.file_sink_encoder,
+                self.file_sink_parser,
+            ]
+        )
 
         src = self.file_sink_parser.get_static_pad("src")
         assert src is not None
@@ -510,10 +563,12 @@ class Player(object):
         self.stop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
     argParser.add_argument("-i", "--input_file", help="input file path", default="")
-    argParser.add_argument("-o", "--output_file", help="output file path", default="output.mp4")
+    argParser.add_argument(
+        "-o", "--output_file", help="output file path", default="output.mp4"
+    )
     args = argParser.parse_args()
 
     player = Player()

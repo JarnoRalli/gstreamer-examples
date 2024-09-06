@@ -1,4 +1,4 @@
-name: gst-pytorch
+name: gst-pytorch-gpu
 channels:
     - menpo
     - conda-forge
@@ -14,6 +14,7 @@ dependencies:
     - gst-plugins-base
     - gst-plugins-good
     - gst-plugins-bad
+    - gst-libav
     - gstreamer
     - gst-python
     - pip

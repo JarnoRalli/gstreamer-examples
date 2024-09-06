@@ -15,12 +15,12 @@ import argparse
 import os
 import sys
 import signal
-from helpers import *
+from helpers import gsthelpers
 
 import gi
 
-gi.require_version('Gst', '1.0')
-from gi.repository import Gst, GLib, GObject
+gi.require_version("Gst", "1.0")
+from gi.repository import Gst, GLib  # noqa: E402
 
 
 class Player(object):
@@ -57,14 +57,18 @@ class Player(object):
         self.video_queue = gsthelpers.create_element("queue", "video-queue")
         self.h264_parser = gsthelpers.create_element("h264parse", "h264-parser")
         self.h264_decoder = gsthelpers.create_element("avdec_h264", "h264-decoder")
-        self.video_converter = gsthelpers.create_element("videoconvert", "video-converter")
-        self.image_sink = gsthelpers.create_element("xvimagesink", "image-sink")
+        self.video_converter = gsthelpers.create_element(
+            "videoconvert", "video-converter"
+        )
+        self.image_sink = gsthelpers.create_element("autovideosink", "image-sink")
 
         # Audio pipeline
         self.audio_queue = gsthelpers.create_element("queue", "audio-queue")
         self.audio_decoder = gsthelpers.create_element("avdec_aac", "avdec_aac")
         self.audio_convert = gsthelpers.create_element("audioconvert", "audio-convert")
-        self.audio_resample = gsthelpers.create_element("audioresample", "audio-resample")
+        self.audio_resample = gsthelpers.create_element(
+            "audioresample", "audio-resample"
+        )
         self.audio_sink = gsthelpers.create_element("autoaudiosink", "audio-sink")
 
         # Add elements to the pipeline
@@ -85,18 +89,26 @@ class Player(object):
         gsthelpers.link_elements([self.source, self.demuxer])
 
         # Link video pipeline
-        gsthelpers.link_elements([self.video_queue,
-                                  self.h264_parser,
-                                  self.h264_decoder,
-                                  self.video_converter,
-                                  self.image_sink])
+        gsthelpers.link_elements(
+            [
+                self.video_queue,
+                self.h264_parser,
+                self.h264_decoder,
+                self.video_converter,
+                self.image_sink,
+            ]
+        )
 
         # Link audio pipeline
-        gsthelpers.link_elements([self.audio_queue,
-                                  self.audio_decoder,
-                                  self.audio_convert,
-                                  self.audio_resample,
-                                  self.audio_sink])
+        gsthelpers.link_elements(
+            [
+                self.audio_queue,
+                self.audio_decoder,
+                self.audio_convert,
+                self.audio_resample,
+                self.audio_sink,
+            ]
+        )
 
         # Connect demux to the pad-added signal, used to link demuxer to queues dynamically
         pad_added_functor = gsthelpers.PadAddedLinkFunctor()
@@ -172,9 +184,11 @@ class Player(object):
         self.stop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("-i", "--input_file", help="path to the file to be played back", default="")
+    argParser.add_argument(
+        "-i", "--input_file", help="path to the file to be played back", default=""
+    )
     args = argParser.parse_args()
 
     player = Player()
