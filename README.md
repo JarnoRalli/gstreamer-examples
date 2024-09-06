@@ -1,3 +1,5 @@
+[![pre-commit](https://github.com/JarnoRalli/gstreamer-examples/actions/workflows/pre-commit.yml/badge.svg?branch=main&event=push)](https://github.com/JarnoRalli/gstreamer-examples/actions/workflows/pre-commit.yml)
+
 # GSTREAMER-EXAMPLES
 
 This repository contains examples related to GStreamer, Deepstream and Hailo. Some of the examples are written in Python
