@@ -14,6 +14,7 @@ Directories are as follows:
 * [hailo-examples](hailo-examples/README.md). Hailo related examples.
 * [gst-examples](gst-examples/README.md). Gst-examples.
 * [docker](docker/README.md). Docker files for generating containers.
+* [conda](conda/README.md). Conda virtual environments.
 
 Paul Bridger has excellent tutorials regarding how to speed up inference. For anyone interested in the subject,
 I recommend you to take a look at:

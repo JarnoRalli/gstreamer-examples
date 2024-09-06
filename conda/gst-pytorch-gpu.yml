@@ -15,7 +15,6 @@ dependencies:
     - gst-plugins-good
     - gst-plugins-bad
     - gst-libav
-    - ffmpeg
     - gstreamer
     - gst-python
     - pip
