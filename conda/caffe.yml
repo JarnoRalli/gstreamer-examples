@@ -1,0 +1,30 @@
+name: caffe
+channels:
+  - conda-forge
+dependencies:
+    - python=3.7
+    - numpy
+    - scipy
+    - protobuf
+    - glog
+    - gflags
+    - boost
+    - hdf5
+    - lmdb
+    - leveldb
+    - opencv
+    - snappy
+    - openblas
+    - matplotlib
+    - pillow
+    - pycairo
+    - pydot
+    - graphviz
+    - cython
+    - scikit-learn
+    - cmake
+    - ninja
+    - pip
+    - caffe
+    - pip:
+        - build

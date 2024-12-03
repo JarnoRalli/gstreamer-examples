@@ -23,10 +23,13 @@ Following YAML configuration files for Conda environments are available:
 
 * [gst-pytorch-gpu-python3.8.yml](./gst-pytorch-gpu-python3.8.yml)
   * **Environment name:** gst-pytorch-gpu-python3.8
-  * **Contains:** python 3.8, pytorch, pytorch-cuda=11.6, gstreamer, matplotlib, numpy
+  * **Contains:** python 3.8, pytorch, pytorch-cuda=11.6, gstreamer, matplotlib, numpy, etc.
 * [gst-pytorch-gpu-python3.10.yml](./gst-pytorch-gpu-python3.10.yml)
   * **Environment name:** gst-pytorch-gpu-python3.10
-  * **Contains:** python 3.10, pytorch, pytorch-cuda=12.1, gstreamer, matplotlib, numpy
+  * **Contains:** python 3.10, pytorch, pytorch-cuda=12.1, gstreamer, matplotlib, numpy, etc.
+* [caffe.yml](./caffe.yml)
+  * **Environment name:** caffe
+  * **Contains:** python 3.7, caffe, opencv, pillow, etc.
 
 You can create a new virtual environment as follows:
 
