@@ -1,0 +1,28 @@
+name: gst-pytorch-gpu-python3.10
+channels:
+    - menpo
+    - conda-forge
+    - anaconda
+    - pytorch
+    - nvidia
+dependencies:
+    - python==3.10
+    - yaml-cpp
+    - openssl
+    - pytorch==2.5.0
+    - torchvision==0.20.0
+    - pytorch-cuda=12.1
+    - opencv
+    - gst-plugins-base
+    - gst-plugins-good
+    - gst-plugins-bad
+    - gst-libav
+    - gstreamer
+    - gst-python
+    - pip
+    - pip:
+        - matplotlib
+        - numpy
+        - scikit-image
+
+

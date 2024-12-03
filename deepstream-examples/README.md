@@ -15,11 +15,14 @@ List of examples:
 
 * [deepstream-tracking](deepstream-tracking/README.md)
   * 4-class object detector with tracking
+  * Tested with deepstream 6.1
 * [deepstream-tracking-parallel](deepstream-tracking-parallel/README.md)
   * 4-class object detector with tracking
   * Splits the input stream into two and runs two pipelines on the split streams
+  * Tested with deepstream 6.1
 * [deepstream-triton-tracking](deepstream-triton-tracking/README.md)
   * 4-class object detector with tracking, uses local version of the Triton Inference Server for inference
+  * Tested with deepstream 6.1
 * [deepstream-retinaface](deepstream-retinaface/README.md)
   * RetinaFace bbox- and landmark detector
   * Uses a custom parser called [NvDsInferParseCustomRetinaface](src/retinaface_parser/nvdsparse_retinaface.cpp)
@@ -29,8 +32,17 @@ List of examples:
 
 You can execute the examples either:
 
-* using a Docker container (preferred way)
-* installing all the required libraries in the host system (and run the risk of breaking your installation)
+* Using a Docker container (preferred way)
+* Using Conda to install all the required libraries (slightly more complicated)
+* Installing all the required libraries in the host system (and run the risk of breaking your installation)
+
+[!WARNING]
+If you use Conda environment, in some cases you have to make sure that the libraries from the Conda environment are preferred over the system libraries.
+This is done by setting the `LD_LIBRARY_PATH` variable. First activate the Conda environment that contains all the required libraries, and then run
+
+```bash
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
+```
 
 In the following you can find instructions for both installing a docker container or installing all the required
 libraries and components in the host system.

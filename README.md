@@ -25,15 +25,14 @@ I recommend you to take a look at:
 
 Helpers is a Python package that contains some helper routines for creating gst-pipelines. Most of the examples, if not all,
 use modules from this package, so it needs to be available to Python. The Docker images in the directory [docker](./docker/README.md) install
-this package automatically. Easiest way to make this accessible is to install it as follows.
-
-Make sure that you have the latest version of the `build` package installed using the following command:
+this package automatically. If you need to make the package available in other environments, you can install it as follows.
+Firs make sure that you have the latest version of the `build` package installed using the following command:
 
 ```bash
 python3 -m pip install --upgrade build
 ```
 
-In order to create the package, run the following command from the directory where the `pyproject.toml` is located:
+In order to create the `helper` package, run the following command from the directory where the `pyproject.toml` is located:
 
 ```bash
 cd helper-package
