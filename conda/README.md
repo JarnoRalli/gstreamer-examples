@@ -21,9 +21,12 @@ conda config --set solver libmamba
 
 Following YAML configuration files for Conda environments are available:
 
-* [gst-pytorch-gpu.yml](./gst-pytorch-gpu.yml)
-  * **Environment name:** gst-pytorch-gpu
-  * **Contains:** python 3.9, pytorch, pytorch-cuda=11.6, gstreamerm, matplotlib, numpy
+* [gst-pytorch-gpu-python3.8.yml](./gst-pytorch-gpu-python3.8.yml)
+  * **Environment name:** gst-pytorch-gpu-python3.8
+  * **Contains:** python 3.8, pytorch, pytorch-cuda=11.6, gstreamer, matplotlib, numpy
+* [gst-pytorch-gpu-python3.10.yml](./gst-pytorch-gpu-python3.10.yml)
+  * **Environment name:** gst-pytorch-gpu-python3.10
+  * **Contains:** python 3.10, pytorch, pytorch-cuda=12.1, gstreamer, matplotlib, numpy
 
 You can create a new virtual environment as follows:
 
@@ -35,5 +38,13 @@ Once the environment has been created, you can activate it by executing the foll
 
 ```bash
 conda activate <NAME-OF-THE-ENVIRONMENT>
+```
+
+[!WARNING]
+If you use Conda environment, in some cases you have to make sure that the libraries from the Conda environment are preferred over the system libraries.
+This is done by setting the `LD_LIBRARY_PATH` variable. First activate the Conda environment that contains all the required libraries, and then run
+
+```bash
+export LD_LIBRARY_PATH=$CONDA_PREFIX/lib:$LD_LIBRARY_PATH
 ```
 
