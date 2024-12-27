@@ -1,6 +1,6 @@
 # Docker Images
 
-This directory contains docker files used for generating docker containers where the examples can be run.
+This directory contains docker files used for generating docker images where the examples can be run.
 
 * [Dockerfile-deepstream](Dockerfile-deepstream)
   * Docker container with DeepStream 6.1.1 plus samples and DeepStream Python bindings
@@ -14,6 +14,14 @@ This directory contains docker files used for generating docker containers where
   * mesa-utils for glxinfo
   * cuda-tookit
   * tensorrt-dev
+* [Dockerfile-rtsp-server](Dockerfile-rtsp-server)
+  * Docker container with RTSP GStreamer components
+  * Based on ubuntu:20.04
+  * gstreamer1.0-plugins-base
+  * gstreamer1.0-plugins-good
+  * gstreamer1.0-plugins-bad
+  * gstreamer1.0-plugins-ugly
+  * gstreamer1.0-rtsp
 
 # 1 Creating Docker Images
 
@@ -24,7 +32,8 @@ Following sections show how to:
 
 ## 1.1 Installing Docker
 
-Before creating the docker image, you need to install Nvidia's Container Toolkit. Instructions can be found here:
+If you want to create a Docker image that uses Nvidia's GPU, you first need to install Nvidia's Container Toolkit.
+Instructions can be found here:
 
 * https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html
 
@@ -64,3 +73,5 @@ After this you can create the docker image used in the examples.
 
 ```bash
 docker build -t nvidia-deepstream-samples -f ./Dockerfile-deepstream .
+```
+
