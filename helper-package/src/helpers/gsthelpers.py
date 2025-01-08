@@ -19,7 +19,7 @@ def create_element(gst_elem: str, name: str):
     # Try creating an element
     print(f"Creating element: {gst_elem}")
     new_element = Gst.ElementFactory.make(gst_elem, name)
-    assert new_element is not None
+    assert new_element is not None, f"Failed to create a Gst element '{gst_elem}'"
 
     return new_element
 
@@ -31,8 +31,10 @@ def link_elements(elements: list) -> None:
     :param elements: a list of Gst-elements that are to be linked
     :return: None
     """
-    assert isinstance(elements, list), "'elements' must be of type list"
-    assert len(elements) >= 2
+    assert isinstance(
+        elements, list
+    ), f"'elements' must be of type list, current type is {type(elements)}"
+    assert len(elements) >= 2, f"At least 2 elements are needed, given {len(elements)}"
 
     for idx, x in enumerate(elements[:-1]):
         print(
