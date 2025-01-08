@@ -2,7 +2,13 @@
 
 This directory contains docker files used for generating docker images where the examples can be run.
 
-* [Dockerfile-deepstream](Dockerfile-deepstream)
+* [Dockerfile-deepstream-6.3-triton-devel]Dockerfile-deepstream-6.3-triton-devel)
+  * Docker container with DeepStream 6.3 plus samples, Triton, and DeepStream Python bindings
+  * Based on nvcr.io/nvidia/deepstream:6.3-triton-multiarch
+  * glmark2 for testing OpenGL inside the container
+  * mesa-utils for glxinfo
+  * With nvinferserver (Triton) plug-in
+* [Dockerfile-deepstream-6.1.1-devel](Dockerfile-deepstream-6.1.1-devel)
   * Docker container with DeepStream 6.1.1 plus samples and DeepStream Python bindings
   * Based on nvcr.io/nvidia/deepstream:6.1.1-samples
   * glmark2 for testing OpenGL inside the container
@@ -14,6 +20,7 @@ This directory contains docker files used for generating docker images where the
   * mesa-utils for glxinfo
   * cuda-tookit
   * tensorrt-dev
+  * no nvinferserver (Triton) plug-in
 * [Dockerfile-rtsp-server](Dockerfile-rtsp-server)
   * Docker container with RTSP GStreamer components
   * Based on ubuntu:20.04
