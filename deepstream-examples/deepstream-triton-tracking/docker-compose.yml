@@ -1,0 +1,41 @@
+services:
+  triton-server:
+    build:
+      context: ../../docker
+      dockerfile: Dockerfile-deepstream-6.3-triton-devel
+    container_name: triton-server
+    entrypoint: |
+      /bin/bash -c "
+      cd /opt/nvidia/deepstream/deepstream/samples/ &&
+      if [ ! -f /opt/nvidia/deepstream/deepstream-6.3/samples/trtis_model_repo/init_done ]; then
+        ./prepare_ds_triton_model_repo.sh &&
+        rm -fR /opt/nvidia/deepstream/deepstream/samples/triton_model_repo/densenet_onnx &&
+        touch /opt/nvidia/deepstream/deepstream-6.3/samples/trtis_model_repo/init_done
+      fi &&
+      tritonserver --log-verbose=2 --log-info=1 --log-warning=1 --log-error=1 --model-repository=/opt/nvidia/deepstream/deepstream/samples/triton_model_repo"
+    networks:
+      - triton-network
+    ports:
+      - "8000:8000"   # HTTP
+      - "8001:8001"   # gRPC
+      - "8002:8002"   # Metrics
+    environment:
+      DISPLAY: "${DISPLAY}"                # Forward display for X11
+      XAUTHORITY: "${XAUTHORITY}"          # X11 authority
+      NVIDIA_DRIVER_CAPABILITIES: "all"    # Enable NVIDIA features
+    runtime: nvidia                        # NVIDIA runtime
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix      # X11 socket
+      - models:/opt/nvidia/deepstream/deepstream-6.3/samples/trtis_model_repo
+
+volumes:
+  models:
+
+networks:
+  triton-network:
+    driver: bridge

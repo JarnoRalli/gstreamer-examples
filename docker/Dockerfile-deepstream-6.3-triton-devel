@@ -1,4 +1,4 @@
-FROM nvcr.io/nvidia/deepstream:6.1.1-samples
+FROM nvcr.io/nvidia/deepstream:6.3-triton-multiarch
 
 # To get video driver libraries at runtime (libnvidia-encode.so/libnvcuvid.so)
 ENV NVIDIA_DRIVER_CAPABILITIES=$NVIDIA_DRIVER_CAPABILITIES,video,compute,graphics,utility
@@ -9,9 +9,13 @@ ENV NVIDIA_DRIVER_CAPABILITIES=$NVIDIA_DRIVER_CAPABILITIES,video,compute,graphic
 # OpenGL benchmark application: glmark2
 # Mesa-utils: mesa-utils -> glxinfo | grep OpenGL
 
+RUN /opt/nvidia/deepstream/deepstream/user_additional_install.sh
+
+RUN rm -rf ~/.cache/gstreamer-1.0/
+
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-    wget python3 python3-pip python3.8-venv python-is-python3 python3-dev \
+    wget python3 python3-pip python-is-python3 python3-dev \
     libcairo2-dev libjpeg-dev libgif.dev \
     libssl1.1 \
     libgstreamer1.0-0 \
@@ -38,16 +42,16 @@ RUN apt-get update && \
     apt-get autoremove -y
 
 # Install DeepStream Python bindings
-RUN wget https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/releases/download/v1.1.4/pyds-1.1.4-py3-none-linux_x86_64.whl && \
-    pip3 install ./pyds-1.1.4-py3-none-linux_x86_64.whl && \
-    rm pyds-1.1.4-py3-none-linux_x86_64.whl
+RUN wget https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/releases/download/v1.1.8/pyds-1.1.8-py3-none-linux_x86_64.whl && \
+    pip3 install ./pyds-1.1.8-py3-none-linux_x86_64.whl && \
+    rm pyds-1.1.8-py3-none-linux_x86_64.whl
 
 # Install the helper-package
 RUN git clone https://github.com/JarnoRalli/gstreamer-examples.git && \
     cd gstreamer-examples/helper-package && \
-    python3 -m build &&\
-    cd dist &&\
-    pip3 install $(ls | grep helpers-*.whl) &&\
-    cd ../../.. &&\
+    python3 -m build && \
+    cd dist && \
+    if [ -f helpers-*.whl ]; then pip3 install helpers-*.whl; else echo "Build failed!"; exit 1; fi && \
+    pip3 list | grep helpers && \
+    cd ../../.. && \
     rm -rf gstreamer-examples
-
