@@ -1,7 +1,10 @@
 """
-This file re-implements deepstream (Python) example deepstream-test2.py, using Triton Inference Server.
-Communication with Triton is done using GRPC. This example uses a probe attached to the osd plug-in in
-order to modify the way how the detections are drawn to the video. Following objects are detected:
+This file implements a simple pipeline with detector and classifiers, using Triton Inference Server
+for doing inference. The same pipeline can be spawned n-number of times, using the same input. The
+idea of this program is to do some testing using Triton.
+
+This example uses a probe attached to the osd plug-in in order to modify the way how the detections
+are drawn to the video. Following objects are detected:
 
 PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
@@ -14,10 +17,13 @@ away from the camera. By drawing bounding boxes and labels for objects that are 
 away from the camera first, object IDs and labels will be easier to read.
 
 For more information regarding the input parameters, execute the following:
->> python3 gst-triton-tracking-v2.py -h
+>> python3 gst-triton-parallel-tracking-v2.py -h
 
-In order to process a file:
+In order to process a single video file:
 >> python3 gst-triton-tracking-v2.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
+
+In order to process the same input file in parallel:
+>> python3 gst-triton-tracking-v2.py -n 4 -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 """
 
 from collections import namedtuple
@@ -292,21 +298,6 @@ class Player(object):
         # Video sink branch
         self.videosink_queue = gsthelpers.create_element("queue", "videosink-queue")
         self.video_sink = gsthelpers.create_element("nveglglessink", "nvvideo-renderer")
-        # File sink branch
-        self.filesink_queue = gsthelpers.create_element("queue", "filesink-queue")
-        self.file_sink_converter = gsthelpers.create_element(
-            "nvvideoconvert", "file-sink-videoconverter"
-        )
-        self.file_sink_encoder = gsthelpers.create_element(
-            "nvv4l2h264enc", "file-sink-encoder"
-        )
-        self.file_sink_parser = gsthelpers.create_element(
-            "h264parse", "file-sink-parser"
-        )
-        self.file_sink_muxer = gsthelpers.create_element(
-            "matroskamux", "file-sink-muxer"
-        )
-        self.file_sink = gsthelpers.create_element("filesink", "file-sink")
 
         # Add elements to the pipeline
         self.pipeline.add(self.source)
@@ -326,13 +317,6 @@ class Player(object):
         # Video sink branch
         self.pipeline.add(self.videosink_queue)
         self.pipeline.add(self.video_sink)
-        # File sink branch
-        self.pipeline.add(self.filesink_queue)
-        self.pipeline.add(self.file_sink_converter)
-        self.pipeline.add(self.file_sink_encoder)
-        self.pipeline.add(self.file_sink_parser)
-        self.pipeline.add(self.file_sink_muxer)
-        self.pipeline.add(self.file_sink)
 
         # Set properties for the streammux
         self.stream_muxer.set_property("width", 1920)
@@ -342,25 +326,23 @@ class Player(object):
 
         # Set properties for sinks
         self.video_sink.set_property("async", False)
-        self.file_sink.set_property("sync", False)
-        self.file_sink.set_property("async", False)
 
         # Set properties for the inference engines
         self.primary_inference.set_property(
             "config-file-path",
-            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton-grpc/config_infer_plan_engine_primary.txt",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt",
         )
         self.secondary1_inference.set_property(
             "config-file-path",
-            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton-grpc/config_infer_secondary_plan_engine_carcolor.txt",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carcolor.txt",
         )
         self.secondary2_inference.set_property(
             "config-file-path",
-            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton-grpc/config_infer_secondary_plan_engine_carmake.txt",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carmake.txt",
         )
         self.secondary3_inference.set_property(
             "config-file-path",
-            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton-grpc/config_infer_secondary_plan_engine_vehicletypes.txt",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_vehicletypes.txt",
         )
 
         # Set properties for the tracker
@@ -440,12 +422,11 @@ class Player(object):
             ]
         )
 
-        # --- LINK OUTPUT BRANCHES ---
-        # We have two outputs, videosink and a filesink, as follows:
+        # --- LINK OUTPUT BRANCHE ---
+        # We have videosink output as follows:
         #
-        #             |-> queue -> videosink
-        # osd -> tee -|
-        #             |-> queue -> videoconvert -> h264enc -> h264parse -> matroskamux -> filesink
+        # osd -> tee -> queue -> videosink
+        #
 
         # --- Video-sink output branch ---
         src = self.tee.get_request_pad("src_0")
@@ -457,45 +438,20 @@ class Player(object):
         # Link video_queue to video_sink
         gsthelpers.link_elements([self.videosink_queue, self.video_sink])
 
-        # --- File-sink output branch ---
-        src = self.tee.get_request_pad("src_1")
-        assert src is not None
-        sink = self.filesink_queue.get_static_pad("sink")
-        assert sink is not None
-        assert src.link(sink) == Gst.PadLinkReturn.OK
-
-        gsthelpers.link_elements(
-            [
-                self.filesink_queue,
-                self.file_sink_converter,
-                self.file_sink_encoder,
-                self.file_sink_parser,
-            ]
-        )
-
-        src = self.file_sink_parser.get_static_pad("src")
-        assert src is not None
-        sink = self.file_sink_muxer.get_request_pad("video_0")
-        assert sink is not None
-        assert src.link(sink) == Gst.PadLinkReturn.OK
-
-        gsthelpers.link_elements([self.file_sink_muxer, self.file_sink])
-
         # --- Meta-data output ---
         # Add a probe to the sink pad of the osd-element in order to draw/print meta-data to the canvas
         osdsinkpad = self.osd.get_static_pad("sink")
         assert osdsinkpad is not None
         osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
 
-    def play(self, input_file: str, output_file: str):
+    def play(self, input_file: str):
         """
 
         :param input_file: path to the h264 encoded input file
-        :param output_file: path to the h264 encoded output file
         :return:
         """
 
-        print(f"PLAY(input_file={input_file}, output_file={output_file})")
+        print(f"PLAY(input_file={input_file})")
 
         # Check if the file exists
         if not os.path.exists(input_file):
@@ -503,9 +459,6 @@ class Player(object):
 
         # Set source location property to the file location
         self.source.set_property("location", input_file)
-
-        # Set location for the output file
-        self.file_sink.set_property("location", output_file)
 
         # Create a bus and add signal watcher
         bus = self.pipeline.get_bus()
@@ -558,20 +511,82 @@ class Player(object):
         self.stop()
 
 
+class MultiPipelinePlayer:
+    def __init__(self, num_pipelines, input_file):
+        Gst.init(None)
+        self.loop = GLib.MainLoop()
+        signal.signal(signal.SIGINT, self.stop_handler)
+        self.pipelines = []
+        self.num_pipelines = num_pipelines
+
+        for i in range(num_pipelines):
+            # Create a Player instance for each pipeline
+            player = Player()
+
+            # Add player and its corresponding output file to the list
+            self.pipelines.append(player)
+
+    def start(self, input_file):
+        # Configure each pipeline with the same input file but different output files
+        for i, player in enumerate(self.pipelines):
+            print(f"Starting pipeline {i+1}")
+            player.source.set_property("location", input_file)
+
+            # Create a bus for each pipeline
+            bus = player.pipeline.get_bus()
+            bus.add_signal_watch()
+            bus.connect("message", self.on_message, player)
+
+            # Set the pipeline to PLAYING state
+            player.pipeline.set_state(Gst.State.PLAYING)
+
+        # Run the main loop to keep all pipelines running
+        self.loop.run()
+
+    def on_message(self, bus, message, player):
+        msg_type = message.type
+        if msg_type == Gst.MessageType.EOS:
+            print("End of stream reached for a pipeline.")
+            player.stop()
+            self.check_all_pipelines_stopped()
+        elif msg_type == Gst.MessageType.ERROR:
+            err, debug = message.parse_error()
+            print(f"Error: {err.message}")
+            player.stop()
+            self.check_all_pipelines_stopped()
+
+    def check_all_pipelines_stopped(self):
+        if all(
+            player.pipeline.get_state(Gst.CLOCK_TIME_NONE)[1] == Gst.State.NULL
+            for player in self.pipelines
+        ):
+            print("All pipelines have stopped. Exiting...")
+            self.loop.quit()
+
+    def stop(self):
+        print("Stopping all pipelines...")
+        for player in self.pipelines:
+            player.stop()
+        self.loop.quit()
+
+    def stop_handler(self, sig, frame):
+        self.stop()
+
+
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
     argParser.add_argument("-i", "--input_file", help="input file path", default="")
     argParser.add_argument(
-        "-o", "--output_file", help="output file path", default="output.mp4"
+        "-n", "--num_pipelines", help="Number of pipelines to run", type=int, default=1
     )
     args = argParser.parse_args()
 
-    player = Player()
+    multi_player = MultiPipelinePlayer(args.num_pipelines, args.input_file)
     try:
-        player.play(args.input_file, args.output_file)
+        multi_player.start(args.input_file)
     except Exception as e:
         print(e)
-        player.stop()
+        multi_player.stop()
         sys.exit(-1)
 
     sys.exit(0)

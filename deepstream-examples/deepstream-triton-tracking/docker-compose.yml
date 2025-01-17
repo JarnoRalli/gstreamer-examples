@@ -32,6 +32,7 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix      # X11 socket
       - models:/opt/nvidia/deepstream/deepstream-6.3/samples/trtis_model_repo
+      - ./:/home/gstreamer_examples
 
 volumes:
   models:
