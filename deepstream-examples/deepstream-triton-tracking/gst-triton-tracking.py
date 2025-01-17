@@ -8,12 +8,10 @@ PGIE_CLASS_ID_PERSON = 2
 PGIE_CLASS_ID_ROADSIGN = 3
 
 For more information regarding the input parameters, execute the following:
-
-python3 gst-triton-tracking.py -h
+>> python3 gst-triton-tracking.py -h
 
 In order to process a file:
-
-python3 gst-triton-tracking.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
+>> python3 gst-triton-tracking.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 """
 
 import argparse

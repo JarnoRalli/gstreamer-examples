@@ -1,7 +1,7 @@
 # Deepstream Tracking with Triton Inferenfce Server
 
-This example re-implements the example from https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/blob/master/apps/deepstream-test2/deepstream_test_2.py, using Triton
-Inference Server. The example detects and tracks following objects seen in a h264 encoded video stream:
+This directory contains several different implementations related to using Triton Inference Server for inference in a Deepstream pipeline.
+The programs detect the following objects:
 
 * PGIE_CLASS_ID_VEHICLE = 0
 * PGIE_CLASS_ID_BICYCLE = 1
@@ -19,16 +19,28 @@ Following inference and tracker components are used:
 
 ## Versions
 
-There are two versions:
 * [gst-triton-tracking.py](gst-triton-tracking.py)
-  * This version draws bounding box and object information using deepstream's native way.
-  * Triton and `gst-triton-tracking.py` are run in the same host.
+  * This version draws bounding box and object information using slightly modified version of the original function.
+  * Triton and the Deepstream pipeline are run in the same host.
   * Uses configuration files from `/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton`
+  * Input video is expected to be h264 encoded
 * [gst-triton-tracking-v2.py](gst-triton-tracking-v2.py)
   * This version draws the information so that bounding- and text boxes for smaller objects are drawn first.
   Everything else being the same, smaller objects tend to be further away from the camera. Also bounding bbox colors are different for each object type.
-  * Uses gRPC for inference. If we disable CUDA buffer sharing, then Triton server and `gst-triton-tracking-v2.py` can be run in different hosts.
+  * Triton and Deepstream pipeline are run in different hosts, gRPC is used for comms.
   * Uses configuration files from `/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton-grpc/`
+  * Input video is expected to be h264 encoded
+* [gst-triton-parallel-tracking-v1.py](./gst-triton-parallel-tracking-v1.py)
+  * Allows to generate several (separate) pipelines that all process the same input file. This is done for testing purposes.
+  * Triton and the Deepstream pipeline are run in the same host.
+  * Uses configuration files from `/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/`
+  * Input video is expected to be h264 encoded
+* [gst-triton-parallel-tracking-v2.py](./gst-triton-parallel-tracking-v2.py)
+  * Creates a pipeline that allows to process several video files.
+  * Triton and the Deepstream pipeline are run in the same host.
+  * Uses configuration files from `/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/`
+  * Uses tiling
+  * Input videos are expected to be h264 encoded
 
 ## Observations
 
@@ -139,7 +151,7 @@ If Triton is running correctly, you should get an answer similar to:
 * Connection #0 to host localhost left intact
 ```
 
-### Launch Deepstream Tracking
+### Launch gst-triton-tracking-v2.py
 
 Next we launch the Docker container that we use for executing the tracking code. Following commands
 are run in the host. First we enable any client to interact with the local X server:
@@ -190,3 +202,34 @@ Now we are ready to run the Triton-tracking code.
 cd /home/gstreamer-examples
 python3 gst-triton-tracking-v2.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 ```
+
+### Launch gst-triton-parallel-tracking-v1.py
+
+We use the same Docker container where the Triton server is running. First find out the container ID:
+
+```bash
+docker ps
+docker exec -i -t <ID> bash
+```
+
+Use the ID that corresponds to the `deepstream-triton-tracking-triton-server` container.
+
+```bash
+cd /home/gstreamer_examples
+python3 gst-triton-parallel-tracking-v1.py -n 2 -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
+```
+
+### Launch gst-triton-parallel-tracking-v2.py
+
+We use the same Docker container where the Triton server is running. First find out the container ID:
+
+```bash
+docker ps
+docker exec -i -t <ID> bash
+```
+
+Use the ID that corresponds to the `deepstream-triton-tracking-triton-server` container.
+
+```bash
+cd /home/gstreamer_examples
+python3 gst-triton-parallel-tracking-v2.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
