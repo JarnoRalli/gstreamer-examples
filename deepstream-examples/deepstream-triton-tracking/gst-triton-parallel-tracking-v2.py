@@ -13,6 +13,7 @@ In order to process 2 video files:
 >>   /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 """
 
+import platform
 import argparse
 import configparser
 import sys
@@ -23,6 +24,36 @@ import math
 
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst, GLib  # noqa: E402
+
+
+def detect_platform() -> str:
+    """
+    Detect the platform type based on the system's architecture.
+
+    This function identifies whether the system is running on a Jetson platform
+    (ARM architecture) or an x86_64 (dGPU) platform by checking the machine's
+    architecture.
+
+    Returns
+    -------
+    str
+        A string indicating the platform type:
+        - "x64" for x86_64 (dGPU) systems.
+        - "arm" for aarch64 (Jetson ARM-based systems).
+        - "unknown" if the architecture is not recognized.
+
+    Examples
+    --------
+    >>> detect_platform()
+    'x64'
+    """
+    architecture = platform.machine()
+    if architecture == "x86_64":
+        return "x64"
+    elif architecture == "aarch64":
+        return "arm"
+    else:
+        return "unknown"
 
 
 def set_tiler_layout(tiler, num_streams, tile_width=1920, tile_height=1080):
@@ -138,21 +169,45 @@ class Player:
         self.pipeline.add(self.osd)
         self.pipeline.add(self.video_sink)
 
-        # Link elements
-        gsthelpers.link_elements(
-            [
-                self.stream_muxer,
-                self.primary_inference,
-                self.secondary1_inference,
-                self.secondary2_inference,
-                self.secondary3_inference,
-                self.tracker,
-                self.tiler,
-                self.video_converter,
-                self.osd,
-                self.video_sink,
-            ]
-        )
+        # If arm (Jetson) add and link nvegltransform
+        if detect_platform() == "arm":
+            self.video_sink_transform = gsthelpers.create_element(
+                "nvegltransform", "video_sink_transform"
+            )
+            self.pipeline.add(self.video_sink_transform)
+            # Link elements
+            gsthelpers.link_elements(
+                [
+                    self.stream_muxer,
+                    self.primary_inference,
+                    self.secondary1_inference,
+                    self.secondary2_inference,
+                    self.secondary3_inference,
+                    self.tracker,
+                    self.tiler,
+                    self.video_converter,
+                    self.osd,
+                    self.video_sink_transform,
+                    self.video_sink,
+                ]
+            )
+        # In other platforms nvegltransform is not required
+        else:
+            # Link elements
+            gsthelpers.link_elements(
+                [
+                    self.stream_muxer,
+                    self.primary_inference,
+                    self.secondary1_inference,
+                    self.secondary2_inference,
+                    self.secondary3_inference,
+                    self.tracker,
+                    self.tiler,
+                    self.video_converter,
+                    self.osd,
+                    self.video_sink,
+                ]
+            )
 
         # Add sources dynamically
         for i, input_file in enumerate(input_files):
