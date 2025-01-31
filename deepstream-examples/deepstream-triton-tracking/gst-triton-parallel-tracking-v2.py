@@ -115,6 +115,12 @@ class Player:
         )
         self.osd = gsthelpers.create_element("nvdsosd", "nvidia-bounding-box-draw")
         self.video_sink = gsthelpers.create_element("nveglglessink", "video-sink")
+        self.queue1 = gsthelpers.create_element("queue","queue1")
+        self.queue2 = gsthelpers.create_element("queue","queue2")
+        self.queue3 = gsthelpers.create_element("queue","queue3")
+        self.queue4 = gsthelpers.create_element("queue","queue4")
+        self.queue5 = gsthelpers.create_element("queue","queue5")
+        self.queue6 = gsthelpers.create_element("queue","queue6")
 
         # Configure streammux
         self.stream_muxer.set_property("width", 1920)
@@ -126,6 +132,7 @@ class Player:
 
         # Configure video sink
         self.video_sink.set_property("sync", True)
+        #self.video_sink.set_property("max-lateness", -1)
 
         # Configure inference engines
         self.primary_inference.set_property(
@@ -160,14 +167,20 @@ class Player:
         # Add elements to pipeline
         self.pipeline.add(self.stream_muxer)
         self.pipeline.add(self.primary_inference)
+        self.pipeline.add(self.tracker)
         self.pipeline.add(self.secondary1_inference)
         self.pipeline.add(self.secondary2_inference)
         self.pipeline.add(self.secondary3_inference)
-        self.pipeline.add(self.tracker)
         self.pipeline.add(self.tiler)
         self.pipeline.add(self.video_converter)
         self.pipeline.add(self.osd)
         self.pipeline.add(self.video_sink)
+        self.pipeline.add(self.queue1)
+        self.pipeline.add(self.queue2)
+        self.pipeline.add(self.queue3)
+        self.pipeline.add(self.queue4)
+        self.pipeline.add(self.queue5)
+        self.pipeline.add(self.queue6)
 
         # If arm (Jetson) add and link nvegltransform
         if detect_platform() == "arm":
@@ -179,14 +192,20 @@ class Player:
             gsthelpers.link_elements(
                 [
                     self.stream_muxer,
+                    self.queue1,
                     self.primary_inference,
+                    self.queue2,
+                    self.tracker,
+                    self.queue3,
                     self.secondary1_inference,
                     self.secondary2_inference,
                     self.secondary3_inference,
-                    self.tracker,
+                    self.queue4,
                     self.tiler,
                     self.video_converter,
+                    self.queue5,
                     self.osd,
+                    self.queue6,
                     self.video_sink_transform,
                     self.video_sink,
                 ]
@@ -197,14 +216,20 @@ class Player:
             gsthelpers.link_elements(
                 [
                     self.stream_muxer,
+                    self.queue1,
                     self.primary_inference,
+                    self.queue2,
+                    self.tracker,
+                    self.queue3,
                     self.secondary1_inference,
                     self.secondary2_inference,
                     self.secondary3_inference,
-                    self.tracker,
+                    self.queue4,
                     self.tiler,
                     self.video_converter,
+                    self.queue5,
                     self.osd,
+                    self.queue6,
                     self.video_sink,
                 ]
             )
