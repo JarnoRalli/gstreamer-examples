@@ -489,7 +489,7 @@ class Player(object):
                     f"Connected '{new_pad.get_name()}' to '{sink_pad.get_name()}'"
                 )
 
-    def play(self, uri: str, output_file: str):
+    def play(self, uri: str, output_file: str = ""):
         """
 
         :param uri: URI of the file or rtsp source
@@ -502,8 +502,9 @@ class Player(object):
         # Set source location property to the file location
         self.urisrcbin.set_property("uri", uri)
 
-        # # Set location for the output file
-        # self.file_sink.set_property("location", output_file)
+        # Set location for the output file
+        if output_file != "":
+            self.file_sink.set_property("location", output_file)
 
         # Create a bus and add signal watcher
         bus = self.pipeline.get_bus()
