@@ -2,7 +2,7 @@
 
 This directory contains docker files used for generating docker images where the examples can be run.
 
-* [Dockerfile-deepstream-6.3-triton-devel]Dockerfile-deepstream-6.3-triton-devel)
+* [Dockerfile-deepstream-6.3-triton-devel](Dockerfile-deepstream-6.3-triton-devel)
   * Docker container with DeepStream 6.3 plus samples, Triton, and DeepStream Python bindings
   * Based on nvcr.io/nvidia/deepstream:6.3-triton-multiarch
   * glmark2 for testing OpenGL inside the container
@@ -71,7 +71,6 @@ You should see output following (or similar) output:
 |        ID   ID                                                   Usage      |
 |=============================================================================|
 +-----------------------------------------------------------------------------+
-
 ```
 
 ## 1.2 Create the Docker Image
@@ -79,6 +78,6 @@ You should see output following (or similar) output:
 After this you can create the docker image used in the examples.
 
 ```bash
-docker build -t nvidia-deepstream-samples -f ./Dockerfile-deepstream .
+docker build -t deepstream-6.3 -f ./Dockerfile-deepstream-6.3-triton-devel .
 ```
 

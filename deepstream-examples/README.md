@@ -15,14 +15,14 @@ List of examples:
 
 * [deepstream-tracking](deepstream-tracking/README.md)
   * 4-class object detector with tracking
-  * Tested with deepstream 6.1
+  * Tested with deepstream 6.3
 * [deepstream-tracking-parallel](deepstream-tracking-parallel/README.md)
   * 4-class object detector with tracking
   * Splits the input stream into two and runs two pipelines on the split streams
   * Tested with deepstream 6.1
 * [deepstream-triton-tracking](deepstream-triton-tracking/README.md)
   * 4-class object detector with tracking, uses local version of the Triton Inference Server for inference
-  * Tested with deepstream 6.1
+  * Tested with deepstream 6.3
 * [deepstream-retinaface](deepstream-retinaface/README.md)
   * RetinaFace bbox- and landmark detector
   * Uses a custom parser called [NvDsInferParseCustomRetinaface](src/retinaface_parser/nvdsparse_retinaface.cpp)
@@ -172,7 +172,7 @@ After this you can create the docker image used in the examples.
 
 ```bash
 cd gstreamer-examples/docker
-docker build -t nvidia-deepstream-samples -f ./Dockerfile-deepstream .
+docker build -t deepstream-6.3 -f ./Dockerfile-deepstream-6.3-triton-devel .
 ```
 
 ## 4.2 Test the Docker Image
@@ -202,7 +202,7 @@ docker run -i -t --rm \
   -e DISPLAY=$DISPLAY \
   -e XAUTHORITY=$XAUTHORITY \
   -e NVIDIA_DRIVER_CAPABILITIES=all \
-  --gpus all nvidia-deepstream-samples bash
+  --gpus all deepstream-6.3 bash
 ```
 
 Then execute the following inside the container:
@@ -252,9 +252,9 @@ docker run -i -t --rm \
   -e DISPLAY=$DISPLAY \
   -e XAUTHORITY=$XAUTHORITY \
   -e NVIDIA_DRIVER_CAPABILITIES=all \
-  --gpus all nvidia-deepstream-samples bash
+  --gpus all deepstream-6.3 bash
 cd /home/gstreamer-examples/deepstream-examples/deepstream-tracking
-python3 gst-tracking.py -i /opt/nvidia/deepstream/deepstream-6.1/samples/streams/sample_1080p_h264.mp4
+python3 gst-tracking.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 ```
 
 When starting the Docker container with the above command, the switch `-v $(pwd):/home/gstreamer-examples` maps the local directory `$(pwd)`
@@ -301,7 +301,6 @@ pip3 install pyds-1.1.4-py3-none-linux_x86_64.whl
 ```
 
 Replace `pyds-1.1.4-py3-none-linux_x86_64.whl` with the version that you downloaded.
-
 
 ## 5.3 Install Triton Inference Server
 
@@ -371,7 +370,6 @@ Build the models shipped with DeepStream SDK
 cd /opt/nvidia/deepstream/deepstream/samples
 ./prepare_ds_triton_model_repo.sh
 ```
-
 
 ## 5.6 Testing Triton Installation
 

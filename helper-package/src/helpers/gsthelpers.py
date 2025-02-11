@@ -1,4 +1,7 @@
 import gi
+import logging
+
+logger = logging.getLogger(__name__)
 
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst  # noqa: E402
@@ -17,7 +20,7 @@ def create_element(gst_elem: str, name: str):
     new_element = None
 
     # Try creating an element
-    print(f"Creating element: {gst_elem}")
+    logger.info(f"Creating element: {gst_elem}")
     new_element = Gst.ElementFactory.make(gst_elem, name)
     assert new_element is not None, f"Failed to create a Gst element '{gst_elem}'"
 
@@ -37,9 +40,8 @@ def link_elements(elements: list) -> None:
     assert len(elements) >= 2, f"At least 2 elements are needed, given {len(elements)}"
 
     for idx, x in enumerate(elements[:-1]):
-        print(
-            f"Linking element {elements[idx].get_name()} -> {elements[idx + 1].get_name()}...",
-            end="",
+        logger.info(
+            f"Linking element {elements[idx].get_name()} -> {elements[idx + 1].get_name()}"
         )
         assert isinstance(
             elements[idx], Gst.Element
@@ -48,9 +50,9 @@ def link_elements(elements: list) -> None:
             elements[idx + 1], Gst.Element
         ), "elements[idx+1] must be of type Gst.Element"
         if elements[idx].link(elements[idx + 1]):
-            print("done")
+            logger.info("Linked")
         else:
-            print("failed")
+            logger.error("Failed to link")
             raise RuntimeError(
                 f"Failed to link: {elements[idx].get_name()} -> {elements[idx + 1].get_name()}"
             )
@@ -111,7 +113,7 @@ class PadAddedLinkFunctor:
         pad_name = pad.get_name()
         element_name = element.get_name()
 
-        print(f"New pad '{pad_name}' created")
+        logger.info(f"New pad '{pad_name}' created")
 
         # Search if the new pad corresponds to any of the defined connections
         index = [i for i, v in enumerate(self.connections) if pad_name.startswith(v[0])]
@@ -126,16 +128,14 @@ class PadAddedLinkFunctor:
             ), f"'{target_element.get_name()}' has no static pad called '{target_sink_name}'"
 
             if not sink_pad.is_linked():
-                print(
-                    f"Linking '{element_name}:{pad_name}' \
-                -> '{target_element.get_name()}:{sink_pad.get_name()}'...",
-                    end="",
+                logger.info(
+                    f"Linking '{element_name}:{pad_name}' -> '{target_element.get_name()}:{sink_pad.get_name()}'"
                 )
                 ret = pad.link(sink_pad)
                 if ret == Gst.PadLinkReturn.OK:
-                    print("done")
+                    logger.info("Linked")
                 else:
-                    print("error")
+                    logger.error("Failed to link")
 
         elif len(index) > 1:
             raise RuntimeError(

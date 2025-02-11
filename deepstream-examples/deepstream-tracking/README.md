@@ -60,3 +60,21 @@ If you have DeepStream with samples installed, you can execute the following:
 python3 gst-tracking-v2.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 ```
 
+## Test Pipelines
+
+Following are test pipelines that can be launched with `gst-launch-1.0`.
+
+```bash
+gst-launch-1.0 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! \
+m.sink_0 nvstreammux name=m width=1280 height=720 batch-size=1 ! nvinfer config-file-path=dstest2_pgie_config.txt ! \
+nvdsosd ! nvvideoconvert ! nveglglessink
+```
+
+```bash
+gst-launch-1.0 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! \
+m.sink_0 nvstreammux name=m width=1280 height=720 batch-size=1 ! nvinfer config-file-path=dstest2_pgie_config.txt ! nvdsosd ! \
+tee name=t t. ! queue ! nvvideoconvert ! 'video/x-raw(memory:NVMM), format=NV12' ! nvv4l2h264enc ! h264parse ! matroskamux ! \
+filesink location=output.mkv t. ! queue ! nvvideoconvert ! nveglglessink
+```

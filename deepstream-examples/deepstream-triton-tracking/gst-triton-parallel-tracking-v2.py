@@ -13,6 +13,7 @@ In order to process 2 video files:
 >>   /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 """
 
+import logging
 import platform
 import argparse
 import configparser
@@ -22,38 +23,10 @@ from helpers import gsthelpers
 import gi
 import math
 
+logger = logging.getLogger(__name__)
+
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst, GLib  # noqa: E402
-
-
-def detect_platform() -> str:
-    """
-    Detect the platform type based on the system's architecture.
-
-    This function identifies whether the system is running on a Jetson platform
-    (ARM architecture) or an x86_64 (dGPU) platform by checking the machine's
-    architecture.
-
-    Returns
-    -------
-    str
-        A string indicating the platform type:
-        - "x64" for x86_64 (dGPU) systems.
-        - "arm" for aarch64 (Jetson ARM-based systems).
-        - "unknown" if the architecture is not recognized.
-
-    Examples
-    --------
-    >>> detect_platform()
-    'x64'
-    """
-    architecture = platform.machine()
-    if architecture == "x86_64":
-        return "x64"
-    elif architecture == "aarch64":
-        return "arm"
-    else:
-        return "unknown"
 
 
 def set_tiler_layout(tiler, num_streams, tile_width=1920, tile_height=1080):
@@ -88,13 +61,13 @@ class Player:
         signal.signal(signal.SIGINT, self.stop_handler)
 
         # Register signal handlers
-        signal.signal(signal.SIGINT, self.stop_handler)  # Handle Ctrl+C
-        signal.signal(signal.SIGTERM, self.stop_handler)  # Handle termination signals
+        signal.signal(signal.SIGINT, self.stop_handler)
+        signal.signal(signal.SIGTERM, self.stop_handler)
 
         # Create pipeline
         self.pipeline = Gst.Pipeline.new("multi-stream-pipeline")
 
-        # Elements
+        # Create all the elements
         self.stream_muxer = gsthelpers.create_element("nvstreammux", "stream-muxer")
         self.primary_inference = gsthelpers.create_element(
             "nvinferserver", "primary-inference"
@@ -115,12 +88,12 @@ class Player:
         )
         self.osd = gsthelpers.create_element("nvdsosd", "nvidia-bounding-box-draw")
         self.video_sink = gsthelpers.create_element("nveglglessink", "video-sink")
-        self.queue1 = gsthelpers.create_element("queue","queue1")
-        self.queue2 = gsthelpers.create_element("queue","queue2")
-        self.queue3 = gsthelpers.create_element("queue","queue3")
-        self.queue4 = gsthelpers.create_element("queue","queue4")
-        self.queue5 = gsthelpers.create_element("queue","queue5")
-        self.queue6 = gsthelpers.create_element("queue","queue6")
+        self.queue1 = gsthelpers.create_element("queue", "queue1")
+        self.queue2 = gsthelpers.create_element("queue", "queue2")
+        self.queue3 = gsthelpers.create_element("queue", "queue3")
+        self.queue4 = gsthelpers.create_element("queue", "queue4")
+        self.queue5 = gsthelpers.create_element("queue", "queue5")
+        self.queue6 = gsthelpers.create_element("queue", "queue6")
 
         # Configure streammux
         self.stream_muxer.set_property("width", 1920)
@@ -132,7 +105,7 @@ class Player:
 
         # Configure video sink
         self.video_sink.set_property("sync", True)
-        #self.video_sink.set_property("max-lateness", -1)
+        # self.video_sink.set_property("max-lateness", -1)
 
         # Configure inference engines
         self.primary_inference.set_property(
@@ -183,7 +156,7 @@ class Player:
         self.pipeline.add(self.queue6)
 
         # If arm (Jetson) add and link nvegltransform
-        if detect_platform() == "arm":
+        if platform.machine() == "aarch64":
             self.video_sink_transform = gsthelpers.create_element(
                 "nvegltransform", "video_sink_transform"
             )
@@ -275,36 +248,40 @@ class Player:
         bus.add_signal_watch()
         bus.connect("message", self.on_message)
 
-        print("Setting pipeline state to PLAYING...")
+        logging.info("Setting pipeline state to PLAYING")
         if self.pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
-            print("Failed to set pipeline to PLAYING")
+            logging.error("Failed to set pipeline to PLAYING")
+            sys.exit(-1)
         else:
-            print("Pipeline is now PLAYING")
+            logging.info("Pipeline is now PLAYING")
         self.loop.run()
 
     def on_message(self, bus, message):
         msg_type = message.type
         if msg_type == Gst.MessageType.EOS:
-            print("All streams have sent EOS. Stopping pipeline...")
+            logging.info("All streams have sent EOS. Stopping pipeline...")
             self.stop()
+
         elif msg_type == Gst.MessageType.ERROR:
             err, debug = message.parse_error()
-            print(f"Error from {message.src.get_name()}: {err.message}")
+            logging.error(f"Error from {message.src.get_name()}: {err.message}")
             self.stop()
 
     def stop(self):
-        print("Stopping pipeline...")
+        logging.info("Stopping pipeline.")
         if self.pipeline:
             self.pipeline.set_state(Gst.State.NULL)  # Transition to NULL state
         self.loop.quit()  # Quit the GLib main loop
-        print("Pipeline stopped.")
+        logging.info("Pipeline stopped.")
 
     def stop_handler(self, sig, frame):
-        print("Signal received. Stopping pipeline...")
+        logging.info("Signal received. Stopping pipeline...")
         self.stop()
 
 
-if __name__ == "__main__":
+def main():
+    logging.basicConfig(level=logging.INFO)
+
     argParser = argparse.ArgumentParser()
     argParser.add_argument(
         "-i", "--input_files", nargs="+", help="Input video files", required=True
@@ -315,8 +292,12 @@ if __name__ == "__main__":
     try:
         player.play()
     except Exception as e:
-        print(f"Error: {e}")
+        logging.error(f"Failed to start the pipeline: {e}")
         player.stop()
         sys.exit(-1)
 
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
