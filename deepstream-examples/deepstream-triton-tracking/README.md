@@ -1,4 +1,4 @@
-# Deepstream Tracking with Triton Inferenfce Server
+# 1 Deepstream Tracking with Triton Inferenfce Server
 
 This directory contains several different implementations related to using Triton Inference Server for inference in a Deepstream pipeline.
 The programs detect the following objects:
@@ -17,7 +17,7 @@ Following inference and tracker components are used:
 * Tracker
   * Configuration file: [dstest2_tracker_config.txt](dstest2_tracker_config.txt)
 
-## Versions
+## 1.1 Versions
 
 * [gst-triton-tracking.py](gst-triton-tracking.py)
   * This version draws bounding box and object information using slightly modified version of the original function.
@@ -42,18 +42,18 @@ Following inference and tracker components are used:
   * Uses tiling
   * Input videos are expected to be h264 encoded
 
-## Observations
+## 1.2 Observations
 
-### DeepstreamSDK 6.1.1
+### 1.2.1 DeepstreamSDK 6.1.1
 
 When using the `nvv4l2h264enc` encoder in the file-sink branch the pipeline became unresponsive after having processed some frames. It seems to work with `x264enc`
 without any problems.
 
-### DeepstreamSDK 6.3
+### 1.2.2 DeepstreamSDK 6.3
 
 The Gst plug-in `x264enc` apparently has been removed.
 
-## Requirements
+## 1.3 Requirements
 
 * DeepStreamSDK 6.1.1 or 6.3
 * Nvidia Container toolkit and Docker compose (if using Docker)
@@ -65,13 +65,13 @@ The Gst plug-in `x264enc` apparently has been removed.
 * gstreamer1.0-plugins-ugly
 * Triton Inference Server (locally built or Docker image)
 
-## How to Run the Example Locally
+## 1.4 How to Run the Example Locally
 
 Since the `gst-triton-tracking-v2.py` uses configuration files from `/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton-grpc`,
 the expectation is that the Triton server is running in the same machine as where the code `gst-triton-tracking-v2.py` is run from. If this is not the case,
 then you need to modify the IP-address of the Triton server in the configuration files.
 
-### Building Models
+### 1.4.1 Building Models
 
 The first step is to build the TensorRT models:
 
@@ -87,7 +87,7 @@ tritonserver \
     --model-repository=/opt/nvidia/deepstream/deepstream/samples/triton_model_repo
 ```
 
-### Running the Tracking Example
+### 1.4.2 Running the Tracking Example
 
 To get help regarding input parameters, execute:
 
@@ -107,7 +107,7 @@ If you have DeepStream with samples installed, you can execute the following:
 python3 gst-triton-tracking-v2.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 ```
 
-## How to Run the Example Using Docker
+## 1.5 How to Run the Example Using Docker
 
 Here the expectation is that both the Docker container running the Triton server and the container where
 the `gst-triton-tracking-v2.py` code is executed from, are running in the same host. We need to modify
@@ -119,7 +119,7 @@ cd gstreamer-examples/docker
 docker build -t deepstream-6.3 -f ./Dockerfile-deepstream-6.3-triton-devel .
 ```
 
-### Launch Triton Server Using Docker Compose
+### 1.5.1 Launch Triton Server Using Docker Compose
 
 Launch Triton server using Docker compose as follows:
 
@@ -151,7 +151,7 @@ If Triton is running correctly, you should get an answer similar to:
 * Connection #0 to host localhost left intact
 ```
 
-### Launch gst-triton-tracking-v2.py
+### 1.5.2 Launch gst-triton-tracking-v2.py
 
 Next we launch the Docker container that we use for executing the tracking code. Following commands
 are run in the host. First we enable any client to interact with the local X server:
@@ -203,7 +203,7 @@ cd /home/gstreamer-examples
 python3 gst-triton-tracking-v2.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 ```
 
-### Launch gst-triton-parallel-tracking-v1.py
+### 1.5.3 Launch gst-triton-parallel-tracking-v1.py
 
 We use the same Docker container where the Triton server is running. First find out the container ID:
 
@@ -219,7 +219,7 @@ cd /home/gstreamer_examples
 python3 gst-triton-parallel-tracking-v1.py -n 2 -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 ```
 
-### Launch gst-triton-parallel-tracking-v2.py
+### 1.5.4 Launch gst-triton-parallel-tracking-v2.py
 
 We use the same Docker container where the Triton server is running. First find out the container ID:
 
@@ -233,3 +233,73 @@ Use the ID that corresponds to the `deepstream-triton-tracking-triton-server` co
 ```bash
 cd /home/gstreamer_examples
 python3 gst-triton-parallel-tracking-v2.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
+```
+### 1.5.5 Test Pipelines
+
+Following are test pipelines that can be launched with `gst-launch-1.0`.
+
+**Single input stream**
+
+```bash
+gst-launch-1.0 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! \
+m.sink_0 nvstreammux name=m width=1280 height=720 batch-size=1 ! nvinferserver config-file-path=/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt ! \
+nvtracker tracker-width=640 tracker-height=480 ll-config-file=config_tracker_NvDCF_perf.yml \
+ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so ! nvdsosd display-clock=1 ! \
+nvvideoconvert ! nveglglessink
+```
+
+**4 Input streams with video- and filesinks**
+
+This pipeline connects 4 `nvurisrcbin` to a single image processing pipeline.
+
+```bash
+gst-launch-1.0 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_0 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_1 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_2 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_3 \
+nvstreammux name=m width=1280 height=720 batch-size=4 ! \
+nvinferserver config-file-path=/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt ! \
+nvtracker tracker-width=640 tracker-height=480 ll-config-file=config_tracker_NvDCF_perf.yml \
+ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so ! \
+nvmultistreamtiler rows=2 columns=2 width=1280 height=720 ! \
+nvdsosd ! tee name=t t. ! queue ! nvvideoconvert ! 'video/x-raw(memory:NVMM), format=NV12' ! nvv4l2h264enc profile=High bitrate=10000000 ! h264parse ! matroskamux ! \
+filesink location=triton_4_stream_output.mkv t. ! queue ! nvvideoconvert ! nveglglessink
+```
+
+**20 Input streams with video- and filesinks**
+
+This pipeline connects 20 `nvurisrcbin` to a single image processing pipeline.
+
+```bash
+gst-launch-1.0 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_0 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_1 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_2 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_3 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_4 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_5 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_6 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_7 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_8 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_9 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_10 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_11 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_12 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_13 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_14 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_15 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_16 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_17 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_18 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_19 \
+nvstreammux name=m width=1280 height=720 batch-size=20 ! \
+nvinferserver config-file-path=/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt ! queue ! \
+nvtracker tracker-width=640 tracker-height=480 ll-config-file=config_tracker_NvDCF_perf.yml \
+ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so ! queue ! \
+nvmultistreamtiler rows=5 columns=4 width=1280 height=720 ! queue ! \
+nvdsosd ! tee name=t t. ! queue ! nvvideoconvert ! 'video/x-raw(memory:NVMM), format=NV12' ! nvv4l2h264enc profile=High bitrate=10000000 ! h264parse ! matroskamux ! \
+filesink location=triton_20_stream_output.mkv t. ! queue ! nvvideoconvert ! nveglglessink
+```
+

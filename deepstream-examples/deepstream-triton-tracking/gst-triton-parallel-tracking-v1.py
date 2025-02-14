@@ -39,6 +39,7 @@ import pyds
 from helpers import gsthelpers
 import gi
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +67,9 @@ ColorList = {
 }
 
 
-def osd_sink_pad_buffer_probe(pad, info, u_data):
+def osd_sink_pad_buffer_probe(
+    pad: Gst.Pad, info: Gst.PadProbeIndo, u_data: Any
+) -> Gst.PadProbeReturn:
     frame_number = 0
     obj_counter = {
         PGIE_CLASS_ID_VEHICLE: 0,
@@ -165,9 +168,9 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
                 if x < 0 or y < 0:
                     continue
 
-                display_meta.text_params[
-                    display_meta.num_labels
-                ].display_text = meta_list_sorted[idx].text
+                display_meta.text_params[display_meta.num_labels].display_text = (
+                    meta_list_sorted[idx].text
+                )
                 display_meta.text_params[display_meta.num_labels].x_offset = x
                 display_meta.text_params[display_meta.num_labels].y_offset = y
                 display_meta.text_params[
@@ -254,7 +257,14 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
 
 
 class MultiPlayer:
-    def __init__(self, uri_list):
+    def __init__(self, uri_list: str):
+        """MultiPlayer constructor.
+
+        Parameters
+        ----------
+        uri_list : str
+            A comma separated list of URIs
+        """
         Gst.init(None)
         self.loop = GLib.MainLoop()
         self.bin_cntr = 0
@@ -336,7 +346,15 @@ class MultiPlayer:
         bus.add_signal_watch()
         bus.connect("message", self.on_message)
 
-    def create_processing_bin(self):
+    def create_processing_bin(self) -> Gst.Bin:
+        """Creates a processor bin
+
+        Returns
+        -------
+        Gst.Bin
+            Created processor bin.
+        """
+
         # Create a bin
         bin = Gst.Bin.new(f"video_processing_bin_{self.bin_cntr}")
 
@@ -496,7 +514,7 @@ class MultiPlayer:
 
         return bin
 
-    def start(self):
+    def start(self) -> None:
         logging.info("MultiPlayer starting")
         if self.pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
             logging.error("MultiPlayer, failed to start pipeline")
@@ -508,7 +526,7 @@ class MultiPlayer:
         # Run the main loop to keep all pipelines running
         self.loop.run()
 
-    def on_message(self, bus, message):
+    def on_message(self, bus: Gst.Bus, message: Gst.Message) -> None:
         message_type = message.type
 
         # End of stream

@@ -1,6 +1,6 @@
 """
 This file re-implements deepstream (Python) example deepstream-test2.py, hopefully in a cleaner manner. In essence
-the example reads a h264 encoded video stream from a file, like mp4, and tracks objects like:
+the example processes videos or images and detects pedestrians and vechiles, and tracks these.
 
 PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
@@ -32,6 +32,7 @@ from helpers import gsthelpers
 import gi
 import logging
 import platform
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,9 @@ ColorList = {
 }
 
 
-def osd_sink_pad_buffer_probe(pad, info, u_data):
+def osd_sink_pad_buffer_probe(
+    pad: Gst.Pad, info: Gst.PadProbeInfo, u_data: Any
+) -> Gst.PadProbeReturn:
     frame_number = 0
     obj_counter = {
         PGIE_CLASS_ID_VEHICLE: 0,
@@ -157,9 +160,9 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
                 if x < 0 or y < 0:
                     continue
 
-                display_meta.text_params[
-                    display_meta.num_labels
-                ].display_text = meta_list_sorted[idx].text
+                display_meta.text_params[display_meta.num_labels].display_text = (
+                    meta_list_sorted[idx].text
+                )
                 display_meta.text_params[display_meta.num_labels].x_offset = x
                 display_meta.text_params[display_meta.num_labels].y_offset = y
                 display_meta.text_params[
@@ -251,6 +254,13 @@ class Player(object):
     """
 
     def __init__(self, output_file: str = ""):
+        """Player constructor.
+
+        Parameters
+        ----------
+        output_file : str, optional
+            Output file path. If empty, no video is created, by default ""
+        """
 
         # Initialize gst
         Gst.init(None)
@@ -466,7 +476,40 @@ class Player(object):
         assert osdsinkpad is not None
         osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
 
-    def on_pad_added(self, src, new_pad, user_data: str):
+    def on_pad_added(self, src: Gst.Element, new_pad: Gst.Pad, user_data: str):
+        """
+        Handles the addition of a new pad to the source element.
+
+        This method is called whenever a new pad is added to the source
+        element. It verifies if the new pad matches the user-specified criteria
+        and links it to a sink pad on the streammuxer if applicable.
+
+        Parameters
+        ----------
+        src : Gst.Element
+            The source element that emitted the pad-added signal.
+        new_pad : Gst.Pad
+            The newly added pad from the source element.
+        user_data : str
+            The string prefix used to match the name of the new pad.
+
+        Raises
+        ------
+        RuntimeError
+            If a sink pad cannot be obtained from the streammuxer.
+        RuntimeError
+            If linking the new pad to the sink pad fails.
+
+        Notes
+        -----
+        - The method logs the process of receiving and linking the new pad.
+        - Only pads whose names start with `user_data` are processed and linked.
+
+        Returns
+        -------
+        None
+            This function does not return a value.
+        """
 
         logger.info(f"Received new pad '{new_pad.get_name()}' from '{src.get_name()}'")
 
@@ -490,11 +533,14 @@ class Player(object):
                 )
 
     def play(self, uri: str, output_file: str = ""):
-        """
+        """Starts the pipeline.
 
-        :param uri: URI of the file or rtsp source
-        :param output_file: path to the h264 encoded output file
-        :return:
+        Parameters
+        ----------
+        uri : str
+            URI of the file or rtsp source
+        output_file : str, optional
+            path to the h264 encoded output file, by default ""
         """
 
         logger.info(f"PLAY(uri={uri}, output_file={output_file})")
@@ -526,14 +572,21 @@ class Player(object):
             self.pipeline.set_state(Gst.State.NULL)
         self.loop.quit()
 
-    def on_message(self, bus, message):
-        """
-        Message handler function.
+    def on_message(self, bus: Gst.Bus, message: Gst.Message) -> None:
+        """Message handler function
 
-        :param bus: bus
-        :param message: message
-        :return: nothing
+        Parameters
+        ----------
+        bus : Gst.Bus
+            Gst bus
+        message : Gst.Message
+            Gst message
+
+        Returns
+        -------
+        None
         """
+
         message_type = message.type
         if message_type == Gst.MessageType.EOS:
             logger.info("EOS message type received")

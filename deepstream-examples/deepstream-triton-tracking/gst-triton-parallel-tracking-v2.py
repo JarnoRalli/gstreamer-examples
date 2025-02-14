@@ -22,6 +22,7 @@ import signal
 from helpers import gsthelpers
 import gi
 import math
+from typing import List
 
 logger = logging.getLogger(__name__)
 
@@ -29,14 +30,21 @@ gi.require_version("Gst", "1.0")
 from gi.repository import Gst, GLib  # noqa: E402
 
 
-def set_tiler_layout(tiler, num_streams, tile_width=1920, tile_height=1080):
-    """
-    Automatically calculate rows and columns for the tiler and set its properties.
+def set_tiler_layout(
+    tiler: Gst.Element, num_streams: int, tile_width=1920, tile_height=1080
+):
+    """Automatically calculate rows and columns for the tiler and set its properties.
 
-    :param tiler: The nvmultistreamtiler element.
-    :param num_streams: Number of input streams.
-    :param tile_width: Width of the tiled output.
-    :param tile_height: Height of the tiled output.
+    Parameters
+    ----------
+    tiler : Gst.Element
+        The nvmultistreamtiler element
+    num_streams : int
+        Number of input streams
+    tile_width : int, optional
+        Width of the tiled output, by default 1920
+    tile_height : int, optional
+        Height of the tiled output, by default 1080
     """
     # Calculate number of rows and columns
     rows = math.ceil(math.sqrt(num_streams))
@@ -48,13 +56,13 @@ def set_tiler_layout(tiler, num_streams, tile_width=1920, tile_height=1080):
     tiler.set_property("width", tile_width)
     tiler.set_property("height", tile_height)
 
-    print(
+    logger.info(
         f"Tiler layout: {rows} rows x {columns} columns, Output size: {tile_width}x{tile_height}"
     )
 
 
 class Player:
-    def __init__(self, input_files):
+    def __init__(self, input_files: List[str]):
 
         Gst.init(None)
         self.loop = GLib.MainLoop()
@@ -256,7 +264,7 @@ class Player:
             logging.info("Pipeline is now PLAYING")
         self.loop.run()
 
-    def on_message(self, bus, message):
+    def on_message(self, bus: Gst.Bus, message: Gst.Message) -> None:
         msg_type = message.type
         if msg_type == Gst.MessageType.EOS:
             logging.info("All streams have sent EOS. Stopping pipeline...")

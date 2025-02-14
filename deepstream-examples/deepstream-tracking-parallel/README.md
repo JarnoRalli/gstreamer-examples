@@ -1,4 +1,4 @@
-# Deepstream Tracking
+# 1 Deepstream Parallel Tracking
 
 This example shows to split an input stream into two, using a tee-element, so that two different image processing pipelines can process the same stream.
 This example processes the split streams using the same inference elements, but they can be different for each stream. It appears that you need to add an
@@ -9,15 +9,15 @@ nvstreammux-element into both of the processing streams, after the tee-element, 
 * PGIE_CLASS_ID_PERSON = 2
 * PGIE_CLASS_ID_ROADSIGN = 3
 
-# Pipeline
+# 2 Pipeline
 
 Pipeline description.
 
 ![Image of the pipeline](./gst-tracking-parallel.pdf)
 
-# Processing Pipeline Configurations
+# 3 Processing Pipeline Configurations
 
-## Pipeline 1
+## 3.1 Pipeline 1
 
 Configuration files for the inference- and tracker elements:
 
@@ -32,7 +32,7 @@ Configuration files for the inference- and tracker elements:
 * Tracker
   * Configuration file: [tracker_config_1.txt](tracker_config_1.txt)
 
-## Pipeline 2
+## 3.2 Pipeline 2
 
 Configuration files for the inference- and tracker elements:
 
@@ -47,7 +47,7 @@ Configuration files for the inference- and tracker elements:
 * Tracker
   * Configuration file: [tracker_config_2.txt](tracker_config_2.txt)
 
-## Requirements
+## 3.3 Requirements
 
 * DeepStreamSDK 6.1.1
 * Python 3.8
@@ -57,7 +57,7 @@ Configuration files for the inference- and tracker elements:
 * gstreamer1.0-plugins-bad
 * gstreamer1.0-plugins-ugly
 
-## How to Run the Example
+## 3.4 How to Run the Example
 
 In order to get help regarding input parameters, execute the following:
 
