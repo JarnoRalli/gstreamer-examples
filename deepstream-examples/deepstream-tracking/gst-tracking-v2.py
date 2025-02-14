@@ -160,9 +160,9 @@ def osd_sink_pad_buffer_probe(
                 if x < 0 or y < 0:
                     continue
 
-                display_meta.text_params[display_meta.num_labels].display_text = (
-                    meta_list_sorted[idx].text
-                )
+                display_meta.text_params[
+                    display_meta.num_labels
+                ].display_text = meta_list_sorted[idx].text
                 display_meta.text_params[display_meta.num_labels].x_offset = x
                 display_meta.text_params[display_meta.num_labels].y_offset = y
                 display_meta.text_params[

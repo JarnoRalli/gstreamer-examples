@@ -95,7 +95,7 @@ nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_
 nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_1 \
 nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_2 \
 nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_3 \
-nvstreammux name=m width=1280 height=720 batch-size=4 ! nvinfer config-file-path=dstest2_pgie_config.txt batch-size=4 \ 
+nvstreammux name=m width=1280 height=720 batch-size=4 ! nvinfer config-file-path=dstest2_pgie_config.txt batch-size=4 \
 model-engine-file=/opt/nvidia/deepstream/deepstream/samples/models/Primary_Detector/resnet10.caffemodel_b4_gpu0_int8.engine \
 ! queue ! \
 nvtracker tracker-width=640 tracker-height=480 ll-config-file=config_tracker_NvDCF_perf_uniqueid.yml \
