@@ -1,9 +1,8 @@
 """
 This file implements a simple pipeline with detector and classifiers, using Triton Inference Server
-for doing inference. The same pipeline can be spawned n-number of times, using the same input. The
-idea of this program is to do some testing using Triton.
+for doing inference. Several streams can be processed using the pipeline.
 
-This example uses a probe attached to the osd plug-in in order to modify the way how the detections
+This example uses a probe attached to the osd element in order to modify the way how the detections
 are drawn to the video. Following objects are detected:
 
 PGIE_CLASS_ID_VEHICLE = 0
@@ -17,15 +16,18 @@ away from the camera. By drawing bounding boxes and labels for objects that are 
 away from the camera first, object IDs and labels will be easier to read.
 
 For more information regarding the input parameters, execute the following:
->> python3 gst-triton-parallel-tracking-v2.py -h
+>> python3 gst-triton-parallel-tracking-v1.py -h
 
 In order to process a single video file:
->> python3 gst-triton-tracking-v2.py -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
+>> python3 gst-triton-tracking-v1.py -u /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
 
-In order to process the same input file in parallel:
->> python3 gst-triton-tracking-v2.py -n 4 -i /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4
+In order to process several video files:
+>> python3 gst-triton-tracking-v1.py -u \
+  /opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4,/opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4
 """
 
+import platform
+from urllib.parse import urlparse
 from collections import namedtuple
 from operator import attrgetter
 import argparse
@@ -36,9 +38,13 @@ import signal
 import pyds
 from helpers import gsthelpers
 import gi
+import logging
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 gi.require_version("Gst", "1.0")
-from gi.repository import Gst, GLib  # noqa: E402
+from gi.repository import Gst, GLib, GObject  # noqa: E402, F401
 
 PGIE_CLASS_ID_VEHICLE = 0
 PGIE_CLASS_ID_BICYCLE = 1
@@ -61,7 +67,9 @@ ColorList = {
 }
 
 
-def osd_sink_pad_buffer_probe(pad, info, u_data):
+def osd_sink_pad_buffer_probe(
+    pad: Gst.Pad, info: Gst.PadProbeIndo, u_data: Any
+) -> Gst.PadProbeReturn:
     frame_number = 0
     obj_counter = {
         PGIE_CLASS_ID_VEHICLE: 0,
@@ -248,345 +256,332 @@ def osd_sink_pad_buffer_probe(pad, info, u_data):
     return Gst.PadProbeReturn.OK
 
 
-class Player(object):
-    """
-    A simple Player-class that processes files with h264 encoded video content.
-    """
+class MultiPlayer:
+    def __init__(self, uri_list: str):
+        """MultiPlayer constructor.
 
-    def __init__(self):
-
-        # Initialize gst
+        Parameters
+        ----------
+        uri_list : str
+            A comma separated list of URIs
+        """
         Gst.init(None)
-
-        # Create mainloop
         self.loop = GLib.MainLoop()
+        self.bin_cntr = 0
 
-        # Register a signal handler for SIGINT
+        # Register signal handlers
         signal.signal(signal.SIGINT, self.stop_handler)
         signal.signal(signal.SIGTERM, self.stop_handler)
         signal.signal(signal.SIGHUP, self.stop_handler)
 
+        # If the uri_list contains files, check that these exist
+        for uri in uri_list.split(","):
+            uri_parsed = urlparse(uri)
+            if uri_parsed.scheme == "file":
+                if not os.path.exists(uri_parsed.path):
+                    logger.error(f"File '{uri_parsed.path}' does not exist")
+                    sys.exit(-1)
+
         # Create an empty pipeline
-        self.pipeline = Gst.Pipeline.new("video-pipeline")
+        self.pipeline = Gst.Pipeline.new("input-pipeline")
         assert self.pipeline is not None
 
-        # Create all the elements
-        self.source = gsthelpers.create_element("filesrc", "source")
-        self.demuxer = gsthelpers.create_element("qtdemux", "demuxer")
-        self.video_queue = gsthelpers.create_element("queue", "video-queue")
-        self.h264_parser = gsthelpers.create_element("h264parse", "h264-parser")
-        self.h264_decoder = gsthelpers.create_element("nvv4l2decoder", "h264-decoder")
-        self.stream_muxer = gsthelpers.create_element("nvstreammux", "stream-muxer")
-        self.primary_inference = gsthelpers.create_element(
-            "nvinferserver", "primary-inference"
+        # Create elements
+        nvmultiurisrcbin = gsthelpers.create_element(
+            "nvmultiurisrcbin", "multiurisrcbin"
         )
-        self.tracker = gsthelpers.create_element("nvtracker", "tracker")
-        self.secondary1_inference = gsthelpers.create_element(
-            "nvinferserver", "secondary1-inference"
-        )
-        self.secondary2_inference = gsthelpers.create_element(
-            "nvinferserver", "secondary2-inference"
-        )
-        self.secondary3_inference = gsthelpers.create_element(
-            "nvinferserver", "secondary3-inference"
-        )
-        self.video_converter = gsthelpers.create_element(
-            "nvvideoconvert", "video-converter"
-        )
-        self.osd = gsthelpers.create_element("nvdsosd", "nvidia-bounding-box-draw")
-        self.tee = gsthelpers.create_element("tee", "tee")
-        # Video sink branch
-        self.videosink_queue = gsthelpers.create_element("queue", "videosink-queue")
-        self.video_sink = gsthelpers.create_element("nveglglessink", "nvvideo-renderer")
+        demuxer = gsthelpers.create_element("nvstreamdemux", "demuxer")
 
         # Add elements to the pipeline
-        self.pipeline.add(self.source)
-        self.pipeline.add(self.demuxer)
-        self.pipeline.add(self.video_queue)
-        self.pipeline.add(self.h264_parser)
-        self.pipeline.add(self.h264_decoder)
-        self.pipeline.add(self.stream_muxer)
-        self.pipeline.add(self.primary_inference)
-        self.pipeline.add(self.tracker)
-        self.pipeline.add(self.secondary1_inference)
-        self.pipeline.add(self.secondary2_inference)
-        self.pipeline.add(self.secondary3_inference)
-        self.pipeline.add(self.video_converter)
-        self.pipeline.add(self.osd)
-        self.pipeline.add(self.tee)
-        # Video sink branch
-        self.pipeline.add(self.videosink_queue)
-        self.pipeline.add(self.video_sink)
+        self.pipeline.add(nvmultiurisrcbin)
+        self.pipeline.add(demuxer)
 
-        # Set properties for the streammux
-        self.stream_muxer.set_property("width", 1920)
-        self.stream_muxer.set_property("height", 1080)
-        self.stream_muxer.set_property("batch-size", 1)
-        self.stream_muxer.set_property("batched-push-timeout", 4000000)
+        # Set the multiurisrcbin properties
+        logger.info(f"URI-list: {uri_list}")
+        nvmultiurisrcbin.set_property("uri-list", uri_list)
+        nvmultiurisrcbin.set_property("width", 1920)
+        nvmultiurisrcbin.set_property("height", 1080)
+        nvmultiurisrcbin.set_property("live-source", 1)
 
-        # Set properties for sinks
-        self.video_sink.set_property("async", False)
+        # Link elements
+        gsthelpers.link_elements([nvmultiurisrcbin, demuxer])
 
-        # Set properties for the inference engines
-        self.primary_inference.set_property(
-            "config-file-path",
-            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt",
-        )
-        self.secondary1_inference.set_property(
-            "config-file-path",
-            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carcolor.txt",
-        )
-        self.secondary2_inference.set_property(
-            "config-file-path",
-            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carmake.txt",
-        )
-        self.secondary3_inference.set_property(
-            "config-file-path",
-            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_vehicletypes.txt",
-        )
+        # Create the image processing pipelines, one for each stream
+        for i, el in enumerate(uri_list.split(",")):
+            logger.info(f"Connecting processing bin for stream {el}")
 
-        # Set properties for the tracker
-        tracker_config = configparser.ConfigParser()
-        tracker_config.read("dstest2_tracker_config.txt")
-        tracker_config.sections()
+            # Create elements
+            processing_bin = self.create_processing_bin()
 
-        for key in tracker_config["tracker"]:
-            if key == "tracker-width":
-                tracker_width = tracker_config.getint("tracker", key)
-                self.tracker.set_property("tracker-width", tracker_width)
-            if key == "tracker-height":
-                tracker_height = tracker_config.getint("tracker", key)
-                self.tracker.set_property("tracker-height", tracker_height)
-            if key == "gpu-id":
-                tracker_gpu_id = tracker_config.getint("tracker", key)
-                self.tracker.set_property("gpu_id", tracker_gpu_id)
-            if key == "ll-lib-file":
-                tracker_ll_lib_file = tracker_config.get("tracker", key)
-                self.tracker.set_property("ll-lib-file", tracker_ll_lib_file)
-            if key == "ll-config-file":
-                tracker_ll_config_file = tracker_config.get("tracker", key)
-                self.tracker.set_property("ll-config-file", tracker_ll_config_file)
-            if key == "enable-batch-process":
-                tracker_enable_batch_process = tracker_config.getint("tracker", key)
-                self.tracker.set_property(
-                    "enable_batch_process", tracker_enable_batch_process
+            # Add to the pipeline
+            self.pipeline.add(processing_bin)
+
+            # Connect tee to muxer
+            src = demuxer.get_request_pad(f"src_{i}")
+            if src is None:
+                logger.error(
+                    f"Failed to request 'src_{i}' pad from the demuxer for stream {el}"
                 )
-            if key == "enable-past-frame":
-                tracker_enable_past_frame = tracker_config.getint("tracker", key)
-                self.tracker.set_property(
-                    "enable_past_frame", tracker_enable_past_frame
+                sys.exit(-1)
+
+            sink = processing_bin.get_static_pad("sink")
+            if sink is None:
+                logger.error(
+                    f"Failed to get 'sink' pad from the processing bin for stream {el}"
+                )
+                sys.exit(-1)
+
+            if src.link(sink) != Gst.PadLinkReturn.OK:
+                logger.error(
+                    f"Failed to the demuxer to the processing bin for stream {el}"
+                )
+                sys.exit(-1)
+            else:
+                logger.info(
+                    f"Linked demuxer 'src_{i}' pad to the processing bin 'sink' pad for stream {el}"
                 )
 
-        # --- LINK IMAGE PROCESSING ---
-        # Link video input and inference as follows:
-        #
-        # filesrc -> demux -> queue -> h264parser -> h264decoder -> streammux ->
-        # primary_inference1 -> tracker -> secondary_inference1 -> secondary_inference2 -> secondary_inference3 ->
-        # videoconverter -> osd (bounding boxes) -> tee
-        #
-        # After the tee element we have two output branches that are described later.
-
-        # Link source to demuxer
-        gsthelpers.link_elements([self.source, self.demuxer])
-
-        # Connect demux to the pad-added signal, used to link demuxer to queue dynamically
-        demuxer_pad_added = gsthelpers.PadAddedLinkFunctor()
-        demuxer_pad_added.register("video_", self.video_queue, "sink")
-
-        assert self.demuxer.connect("pad-added", demuxer_pad_added) is not None
-
-        # Link video pipeline
-        gsthelpers.link_elements(
-            [self.video_queue, self.h264_parser, self.h264_decoder]
-        )
-
-        # Link decoder to streammux
-        source = self.h264_decoder.get_static_pad("src")
-        assert source is not None
-        sink = self.stream_muxer.get_request_pad("sink_0")
-        assert sink is not None
-        assert source.link(sink) == Gst.PadLinkReturn.OK
-
-        # Link inference, tracker and visualization
-        gsthelpers.link_elements(
-            [
-                self.stream_muxer,
-                self.primary_inference,
-                self.tracker,
-                self.secondary1_inference,
-                self.secondary2_inference,
-                self.secondary3_inference,
-                self.video_converter,
-                self.osd,
-                self.tee,
-            ]
-        )
-
-        # --- LINK OUTPUT BRANCHE ---
-        # We have videosink output as follows:
-        #
-        # osd -> tee -> queue -> videosink
-        #
-
-        # --- Video-sink output branch ---
-        src = self.tee.get_request_pad("src_0")
-        assert src is not None
-        sink = self.videosink_queue.get_static_pad("sink")
-        assert sink is not None
-        assert src.link(sink) == Gst.PadLinkReturn.OK
-
-        # Link video_queue to video_sink
-        gsthelpers.link_elements([self.videosink_queue, self.video_sink])
-
-        # --- Meta-data output ---
-        # Add a probe to the sink pad of the osd-element in order to draw/print meta-data to the canvas
-        osdsinkpad = self.osd.get_static_pad("sink")
-        assert osdsinkpad is not None
-        osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
-
-    def play(self, input_file: str):
-        """
-
-        :param input_file: path to the h264 encoded input file
-        :return:
-        """
-
-        print(f"PLAY(input_file={input_file})")
-
-        # Check if the file exists
-        if not os.path.exists(input_file):
-            raise RuntimeError(f"Input file '{input_file}' does not exist")
-
-        # Set source location property to the file location
-        self.source.set_property("location", input_file)
-
-        # Create a bus and add signal watcher
+        # Get hold of the bus and add a watcher
         bus = self.pipeline.get_bus()
         bus.add_signal_watch()
         bus.connect("message", self.on_message)
 
-        print("Setting pipeline state to PLAYING...", end="")
-        if self.pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
-            print("failed")
+    def create_processing_bin(self) -> Gst.Bin:
+        """Creates a processor bin
+
+        Returns
+        -------
+        Gst.Bin
+            Created processor bin.
+        """
+
+        # Create a bin
+        bin = Gst.Bin.new(f"video_processing_bin_{self.bin_cntr}")
+
+        # Create all the elements
+        primary_inference = gsthelpers.create_element(
+            "nvinferserver", f"primary-inference-{self.bin_cntr}"
+        )
+        tracker = gsthelpers.create_element("nvtracker", f"tracker-{self.bin_cntr}")
+        secondary1_inference = gsthelpers.create_element(
+            "nvinferserver", f"secondary1-inference-{self.bin_cntr}"
+        )
+        secondary2_inference = gsthelpers.create_element(
+            "nvinferserver", f"secondary2-inference-{self.bin_cntr}"
+        )
+        secondary3_inference = gsthelpers.create_element(
+            "nvinferserver", f"secondary3-inference-{self.bin_cntr}"
+        )
+        video_converter = gsthelpers.create_element(
+            "nvvideoconvert", f"video-converter-{self.bin_cntr}"
+        )
+        osd = gsthelpers.create_element("nvdsosd", f"draw-overlays-{self.bin_cntr}")
+        videosink_queue = gsthelpers.create_element(
+            "queue", f"videosink-queue-{self.bin_cntr}"
+        )
+        video_sink = gsthelpers.create_element(
+            "nveglglessink", f"nvvideo-renderer-{self.bin_cntr}"
+        )
+        queue1 = gsthelpers.create_element("queue", f"queue1-{self.bin_cntr}")
+        queue2 = gsthelpers.create_element("queue", f"queue2-{self.bin_cntr}")
+        queue3 = gsthelpers.create_element("queue", f"queue3-{self.bin_cntr}")
+        queue4 = gsthelpers.create_element("queue", f"queue4-{self.bin_cntr}")
+
+        # Add elements to the bin
+        bin.add(primary_inference)
+        bin.add(tracker)
+        bin.add(secondary1_inference)
+        bin.add(secondary2_inference)
+        bin.add(secondary3_inference)
+        bin.add(video_converter)
+        bin.add(osd)
+        bin.add(videosink_queue)
+        bin.add(video_sink)
+        bin.add(queue1)
+        bin.add(queue2)
+        bin.add(queue3)
+        bin.add(queue4)
+
+        if platform.machine() == "aarch64":
+            # Add egl-transform for Jetson
+            video_sink_transform = gsthelpers.create_element(
+                "nvegltransform", f"video-sink-transform-{self.bin_cntr}"
+            )
+            bin.add(video_sink_transform)
+
+            # Link inference, tracker and visualization
+            gsthelpers.link_elements(
+                [
+                    queue1,
+                    primary_inference,
+                    queue2,
+                    tracker,
+                    queue3,
+                    secondary1_inference,
+                    secondary2_inference,
+                    secondary3_inference,
+                    queue4,
+                    video_converter,
+                    osd,
+                    video_sink_transform,
+                    video_sink,
+                ]
+            )
         else:
-            print("done")
+            # Link inference, tracker and visualization
+            gsthelpers.link_elements(
+                [
+                    queue1,
+                    primary_inference,
+                    queue2,
+                    tracker,
+                    queue3,
+                    secondary1_inference,
+                    secondary2_inference,
+                    secondary3_inference,
+                    queue4,
+                    video_converter,
+                    osd,
+                    video_sink,
+                ]
+            )
 
-        # Start loop
-        self.loop.run()
+        # Set properties for the inference engines
+        # Since we're reusing the same configuration, we need to tweak the unique-id and infer-on-gie-id
+        # in order to avoid clashes
+        primary_inference.set_property(
+            "config-file-path",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt",
+        )
+        # primary_inference.set_property("unique-id", 1 + self.bin_cntr * 10)
+        # logger.info(
+        #     f"Primary detector unique ID: {primary_inference.get_property('unique-id')}"
+        # )
 
-    def stop(self):
-        print("STOP()")
-        print("Setting pipeline state to NULL...", end="")
-        self.pipeline.set_state(Gst.State.NULL)
-        print("done")
-        self.loop.quit()
+        secondary1_inference.set_property(
+            "config-file-path",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carcolor.txt",
+        )
+        secondary1_inference.set_property("unique-id", 2 + self.bin_cntr * 10)
+        # secondary1_inference.set_property("infer-on-gie-id", 1 + self.bin_cntr * 10)
+        # logger.info(
+        #     f"Secondary 1 detector unique ID: {secondary1_inference.get_property('unique-id')}"
+        # )
 
-    def on_message(self, bus, message):
-        """
-        Message handler function.
+        secondary2_inference.set_property(
+            "config-file-path",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carmake.txt",
+        )
+        secondary2_inference.set_property("unique-id", 3 + self.bin_cntr * 10)
+        # secondary2_inference.set_property("infer-on-gie-id", 1 + self.bin_cntr * 10)
+        # logger.info(
+        #     f"Secondary 2 detector unique ID: {secondary2_inference.get_property('unique-id')}"
+        # )
 
-        :param bus: bus
-        :param message: message
-        :return: nothing
-        """
-        message_type = message.type
-        if message_type == Gst.MessageType.EOS:
-            print("EOS message type received")
+        secondary3_inference.set_property(
+            "config-file-path",
+            "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_vehicletypes.txt",
+        )
+        # secondary3_inference.set_property("unique-id", 4 + self.bin_cntr * 10)
+        # secondary3_inference.set_property("infer-on-gie-id", 1 + self.bin_cntr * 10)
+        # logger.info(
+        #     f"Secondary 3 detector unique ID: {secondary3_inference.get_property('unique-id')}"
+        # )
+
+        # Configure tracker
+        tracker_config = configparser.ConfigParser()
+        tracker_config.read("dstest2_tracker_config.txt")
+        for key in tracker_config["tracker"]:
+            value = tracker_config["tracker"][key]
+            if value.isdigit():
+                value = int(value)
+            tracker.set_property(key, value)
+
+        # Create ghost pads for external linking
+        sink_pad = Gst.GhostPad.new("sink", queue1.get_static_pad("sink"))
+        if not sink_pad:
+            logger.error("bin failed to create a GhostPad for sink")
+            sys.exit(-1)
+        bin.add_pad(sink_pad)
+
+        # Add a probe to the sink pad of the osd-element in order to draw/print meta-data to the canvas
+        # using the function osd_sink_pad_buffer_probe
+        osdsinkpad = osd.get_static_pad("sink")
+        assert osdsinkpad is not None
+        osdsinkpad.add_probe(Gst.PadProbeType.BUFFER, osd_sink_pad_buffer_probe, 0)
+
+        self.bin_cntr += 1
+
+        return bin
+
+    def start(self) -> None:
+        logging.info("MultiPlayer starting")
+        if self.pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
+            logging.error("MultiPlayer, failed to start pipeline")
             self.stop()
-
-        elif message_type == Gst.MessageType.ERROR:
-            err, dbg = message.parse_error()
-            print(f"Error from {message.src.get_name()}: {err.message}")
-            self.stop()
-
-    def stop_handler(self, sig, frame):
-        """
-        Even handler for stopping the pipeline.
-
-        :param sig: signal
-        :param frame: stack frame
-        :return:
-        """
-        print("Signal SIGINT received")
-        self.stop()
-
-
-class MultiPipelinePlayer:
-    def __init__(self, num_pipelines, input_file):
-        Gst.init(None)
-        self.loop = GLib.MainLoop()
-        signal.signal(signal.SIGINT, self.stop_handler)
-        self.pipelines = []
-        self.num_pipelines = num_pipelines
-
-        for i in range(num_pipelines):
-            # Create a Player instance for each pipeline
-            player = Player()
-
-            # Add player and its corresponding output file to the list
-            self.pipelines.append(player)
-
-    def start(self, input_file):
-        # Configure each pipeline with the same input file but different output files
-        for i, player in enumerate(self.pipelines):
-            print(f"Starting pipeline {i+1}")
-            player.source.set_property("location", input_file)
-
-            # Create a bus for each pipeline
-            bus = player.pipeline.get_bus()
-            bus.add_signal_watch()
-            bus.connect("message", self.on_message, player)
-
-            # Set the pipeline to PLAYING state
-            player.pipeline.set_state(Gst.State.PLAYING)
+            return
+        else:
+            logging.info("MultiPlayer, started")
 
         # Run the main loop to keep all pipelines running
         self.loop.run()
 
-    def on_message(self, bus, message, player):
-        msg_type = message.type
-        if msg_type == Gst.MessageType.EOS:
-            print("End of stream reached for a pipeline.")
-            player.stop()
-            self.check_all_pipelines_stopped()
-        elif msg_type == Gst.MessageType.ERROR:
-            err, debug = message.parse_error()
-            print(f"Error: {err.message}")
-            player.stop()
-            self.check_all_pipelines_stopped()
+    def on_message(self, bus: Gst.Bus, message: Gst.Message) -> None:
+        message_type = message.type
 
-    def check_all_pipelines_stopped(self):
-        if all(
-            player.pipeline.get_state(Gst.CLOCK_TIME_NONE)[1] == Gst.State.NULL
-            for player in self.pipelines
-        ):
-            print("All pipelines have stopped. Exiting...")
-            self.loop.quit()
+        # End of stream
+        if message_type == Gst.MessageType.EOS:
+            logging.info("MultiPlayer, EOS received")
+            self.stop()
+
+        # Error
+        elif message_type == Gst.MessageType.ERROR:
+            err, debug = message.parse_error()
+            logging.error(f"MultiPlayer error {err.message}, debug {debug}")
+            self.stop()
+
+        # # State changed
+        # elif message_type == Gst.MessageType.STATE_CHANGED:
+        #     old_state, new_state, pending = message.parse_state_changed()
+
+        #     src = message.src
+        #     if isinstance(src, Gst.Pipeline):
+        #         element_name = "Pipeline"
+        #     else:
+        #         element_name = src.get_name()
+
+        #     logging.info(
+        #         f"MultiPlayer, {element_name} state changed: {old_state.value_nick} -> {new_state.value_nick}"
+        #     )
 
     def stop(self):
-        print("Stopping all pipelines...")
-        for player in self.pipelines:
-            player.stop()
+        logging.info("MultiPlayer stopping")
+
+        if self.pipeline:
+            self.pipeline.set_state(Gst.State.NULL)
         self.loop.quit()
 
     def stop_handler(self, sig, frame):
         self.stop()
 
 
-if __name__ == "__main__":
+def main():
+    logging.basicConfig(level=logging.INFO)
+
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("-i", "--input_file", help="input file path", default="")
-    argParser.add_argument(
-        "-n", "--num_pipelines", help="Number of pipelines to run", type=int, default=1
-    )
+    argParser.add_argument("-u", "--uri", help="Input uri", default="")
     args = argParser.parse_args()
 
-    multi_player = MultiPipelinePlayer(args.num_pipelines, args.input_file)
+    multi_player = MultiPlayer(args.uri)
     try:
-        multi_player.start(args.input_file)
+        multi_player.start()
     except Exception as e:
-        print(e)
+        logging.error(f"Failed to start the pipeline: {e}")
         multi_player.stop()
         sys.exit(-1)
 
     sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
