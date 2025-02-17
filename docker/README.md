@@ -81,3 +81,67 @@ After this you can create the docker image used in the examples.
 docker build -t deepstream-6.3 -f ./Dockerfile-deepstream-6.3-triton-devel .
 ```
 
+## 1.3 Test the Docker Image
+
+Some of the examples use GStreamer plugin `nveglglessink` for showing the results in realtime. `nveglglessink`
+depends on OpenGL, so making sure that OpenGL works inside the container is essential. Make sure that `DISPLAY`
+environment variable has been set:
+
+```bash
+env | grep DISPLAY
+```
+If it is not set, then you need to set it:
+
+```bash
+export DISPLAY=:<DISPLAY_NR>
+```
+
+Replace `<DISPLAY_NR>` with the actual display which is typically `0` or `1`.
+
+Then start the container:
+
+```bash
+xhost +
+docker run -i -t --rm \
+  -v /tmp/.X11-unix:/tmp/.X11-unix \
+  -v $(pwd):/home/gstreamer-examples \
+  -e DISPLAY=$DISPLAY \
+  -e XAUTHORITY=$XAUTHORITY \
+  -e NVIDIA_DRIVER_CAPABILITIES=all \
+  --gpus all deepstream-6.3 bash
+```
+
+Then execute the following inside the container:
+
+```bash
+glxinfo | grep OpenGL
+```
+
+You should see something similar to:
+
+```bash
+OpenGL vendor string: NVIDIA Corporation
+OpenGL renderer string: NVIDIA GeForce GTX 1070/PCIe/SSE2
+OpenGL core profile version string: 4.6.0 NVIDIA 525.60.13
+OpenGL core profile shading language version string: 4.60 NVIDIA
+OpenGL core profile context flags: (none)
+OpenGL core profile profile mask: core profile
+OpenGL core profile extensions:
+OpenGL version string: 4.6.0 NVIDIA 525.60.13
+OpenGL shading language version string: 4.60 NVIDIA
+OpenGL context flags: (none)
+OpenGL profile mask: (none)
+OpenGL extensions:
+OpenGL ES profile version string: OpenGL ES 3.2 NVIDIA 525.60.13
+OpenGL ES profile shading language version string: OpenGL ES GLSL ES 3.20
+OpenGL ES profile extensions:
+```
+
+If the `OpenGL vendor string` is `NVIDIA Corporation`, execute an OpenGL test application inside the container:
+
+```bash
+glmark2
+```
+
+A window should pop-up, displaying a horse.
+

@@ -84,3 +84,75 @@ The dot file can be converted into pdf as follows:
 dot -Tpdf <NAME-OF-THE-DOT-FILE> -o output.pdf
 ```
 
+# 4 Test Pipelines
+
+Following are test pipelines that can be launched with `gst-launch-1.0`. Requirements for running the pipelines:
+
+* Deepstream 6.3
+
+## 4.1 Processing Several Streams Using a Single Pipeline
+
+Figure 1. shows the pipeline. We connect several streams to a single processing pipeline. I have omitted some details
+from the pipeline so that it fits better on the screen.
+
+<figure align="center">
+    <img src="./figures/multi_input_pipeline.png" width="900">
+    <figcaption>Figure 1. Parallel processing of several streams with a single pipeline.</figcaption>
+</figure>
+
+### 4.1.1 Processing Pipeline with 4 Input Streams with Video- and Filesinks
+
+```bash
+gst-launch-1.0 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_0 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_1 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_2 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_3 \
+nvstreammux name=m width=1280 height=720 batch-size=4 ! nvinfer config-file-path=dstest2_pgie_config.txt batch-size=4 \
+model-engine-file=/opt/nvidia/deepstream/deepstream/samples/models/Primary_Detector/resnet10.caffemodel_b4_gpu0_int8.engine \
+! queue ! \
+nvtracker tracker-width=640 tracker-height=480 ll-config-file=config_tracker_NvDCF_perf_uniqueid.yml \
+ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so ! queue ! \
+nvmultistreamtiler rows=2 columns=2 width=1280 height=720 ! queue ! \
+nvdsosd ! tee name=t \
+t. ! queue ! nvvideoconvert ! 'video/x-raw(memory:NVMM), format=NV12' ! nvv4l2h264enc profile=High bitrate=10000000 ! h264parse ! matroskamux ! \
+filesink location=4_stream_output.mkv \
+t. ! queue ! nvvideoconvert ! nveglglessink
+```
+
+### 4.1.2 Processing Pipeline with 20 Input Streams with Video- and Filesinks
+
+```bash
+gst-launch-1.0 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_0 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_1 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_2 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_3 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_4 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_5 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_6 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_7 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_8 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_9 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_10 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_11 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_12 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_13 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_14 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_15 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_16 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_17 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! m.sink_18 \
+nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h265.mp4 ! queue ! m.sink_19 \
+nvstreammux name=m width=1280 height=720 batch-size=20 ! nvinfer config-file-path=dstest2_pgie_config.txt \
+batch-size=30 \
+model-engine-file=/opt/nvidia/deepstream/deepstream/samples/models/Primary_Detector/resnet10.caffemodel_b30_gpu0_int8.engine ! queue ! \
+nvtracker tracker-width=640 tracker-height=480 ll-config-file=config_tracker_NvDCF_perf_uniqueid.yml \
+ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so ! queue ! \
+nvmultistreamtiler rows=5 columns=4 width=1280 height=720 ! queue ! \
+nvdsosd ! tee name=t \
+t. ! queue ! nvvideoconvert ! 'video/x-raw(memory:NVMM), format=NV12' ! nvv4l2h264enc profile=High bitrate=10000000 ! h264parse ! matroskamux ! \
+filesink location=20_stream_output.mkv \
+t. ! queue ! nvvideoconvert ! nveglglessink
+```
+

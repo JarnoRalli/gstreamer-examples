@@ -453,40 +453,40 @@ class MultiPlayer:
             "config-file-path",
             "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt",
         )
-        primary_inference.set_property("unique-id", 1 + self.bin_cntr * 10)
-        logger.info(
-            f"Primary detector unique ID: {primary_inference.get_property('unique-id')}"
-        )
+        # primary_inference.set_property("unique-id", 1 + self.bin_cntr * 10)
+        # logger.info(
+        #     f"Primary detector unique ID: {primary_inference.get_property('unique-id')}"
+        # )
 
         secondary1_inference.set_property(
             "config-file-path",
             "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carcolor.txt",
         )
         secondary1_inference.set_property("unique-id", 2 + self.bin_cntr * 10)
-        secondary1_inference.set_property("infer-on-gie-id", 1 + self.bin_cntr * 10)
-        logger.info(
-            f"Secondary 1 detector unique ID: {secondary1_inference.get_property('unique-id')}"
-        )
+        # secondary1_inference.set_property("infer-on-gie-id", 1 + self.bin_cntr * 10)
+        # logger.info(
+        #     f"Secondary 1 detector unique ID: {secondary1_inference.get_property('unique-id')}"
+        # )
 
         secondary2_inference.set_property(
             "config-file-path",
             "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_carmake.txt",
         )
         secondary2_inference.set_property("unique-id", 3 + self.bin_cntr * 10)
-        secondary2_inference.set_property("infer-on-gie-id", 1 + self.bin_cntr * 10)
-        logger.info(
-            f"Secondary 2 detector unique ID: {secondary2_inference.get_property('unique-id')}"
-        )
+        # secondary2_inference.set_property("infer-on-gie-id", 1 + self.bin_cntr * 10)
+        # logger.info(
+        #     f"Secondary 2 detector unique ID: {secondary2_inference.get_property('unique-id')}"
+        # )
 
         secondary3_inference.set_property(
             "config-file-path",
             "/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_secondary_plan_engine_vehicletypes.txt",
         )
-        secondary3_inference.set_property("unique-id", 4 + self.bin_cntr * 10)
-        secondary3_inference.set_property("infer-on-gie-id", 1 + self.bin_cntr * 10)
-        logger.info(
-            f"Secondary 3 detector unique ID: {secondary3_inference.get_property('unique-id')}"
-        )
+        # secondary3_inference.set_property("unique-id", 4 + self.bin_cntr * 10)
+        # secondary3_inference.set_property("infer-on-gie-id", 1 + self.bin_cntr * 10)
+        # logger.info(
+        #     f"Secondary 3 detector unique ID: {secondary3_inference.get_property('unique-id')}"
+        # )
 
         # Configure tracker
         tracker_config = configparser.ConfigParser()
