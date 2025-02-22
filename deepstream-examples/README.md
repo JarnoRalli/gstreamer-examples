@@ -15,14 +15,17 @@ List of examples:
 
 * [deepstream-tracking](deepstream-tracking/README.md)
   * 4-class object detector with tracking
-  * Tested with deepstream 6.3
+  * Tested with DeepStream 6.3
 * [deepstream-tracking-parallel](deepstream-tracking-parallel/README.md)
   * 4-class object detector with tracking
   * Splits the input stream into two and runs two pipelines on the split streams
-  * Tested with deepstream 6.1
+  * Tested with DeepStream 6.1
 * [deepstream-triton-tracking](deepstream-triton-tracking/README.md)
   * 4-class object detector with tracking, uses local version of the Triton Inference Server for inference
-  * Tested with deepstream 6.3
+  * Tested with DeepStream 6.3
+* [deepstream-hybrid](deepstream-hybrid/README.md)
+  * Examples related to combining `nvinfer` and `nvinferserver`
+  * Tested with DeepStream 6.3
 * [deepstream-retinaface](deepstream-retinaface/README.md)
   * RetinaFace bbox- and landmark detector
   * Uses a custom parser called [NvDsInferParseCustomRetinaface](src/retinaface_parser/nvdsparse_retinaface.cpp)
