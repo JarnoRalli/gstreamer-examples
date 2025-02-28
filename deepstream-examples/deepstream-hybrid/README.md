@@ -35,6 +35,8 @@ ls -la
 
 ### 1.1.1  Single Pipeline
 
+* Tested in DeepStream 6.3
+
 Following example executes a single image processing pipeline so that the detector (primary mode) runs locally in Triton and the classifier (secondary mode) that classifies
 the car mmake/brand runs without Triton. You can launch the example by executing the following inside the `/home/gstreamer_examples/` directory:
 
@@ -50,58 +52,63 @@ nvdsosd display-clock=1 ! nvvideoconvert ! nveglglessink
 
 ### 1.1.2 Pipeline with Two Branches
 
+* Tested in DeepStream 6.3
+
 In this pipeline we process two different streams in the same detector (primary mode) running locally in Triton. After the tracker we split the streams using `nvstreamdemux` and
 add a classifier (secondary mode) that classifies the car make/brand. The expectation is that the car model is displayed in the output in the branch that has the car make/brand classifier.
-If the classifier is in the `src_0` branch then everything works as expected. However, if the classifier is in the `src_1` branch then this doesn't work. Figure 1. shows the pipeline.
+Figure 1. shows the pipeline with the secondary classifier in the `nvstreamdemux` `src_1` output.
 
 <figure align="center">
     <img src="./figures/hybrid_pipeline.png" width="900">
     <figcaption>Figure 1. Hybrid pipeline with two branches.</figcaption>
 </figure>
 
-**This works in Deepstream 6.3**
+> [!IMPORTANT]
+> Please note that you need to add `nvstreammux` after the `nvstreamdemux` in both of the outputs, with the correct `batch-size` parameter!
+
+**Secondary Classifier in Demuxer src_0**
 
 In this case the classifier is in the `src_0` output of the `nvstreamdemuxer` and we can see the car make in the sink. You can launch the example by executing the following inside the `/home/gstreamer_examples/` directory:
 
 ```bash
 gst-launch-1.0 -e \
-nvstreammux name=mux width=1280 height=720 batch-size=2 ! \
+nvstreammux name=mux width=1920 height=1080 batch-size=2 ! \
 nvinferserver config-file-path=/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt batch-size=2 ! \
 nvtracker tracker-width=640 tracker-height=480 ll-config-file=config_tracker_NvDCF_perf.yml ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so ! \
 nvstreamdemux name=demux \
 nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! mux.sink_0 \
 nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! mux.sink_1 \
-demux.src_0 ! queue ! nvinfer config-file-path=dstest2_sgie2_config.txt ! nvdsosd ! nvvideoconvert ! nveglglessink \
-demux.src_1 ! queue ! nvdsosd ! nvvideoconvert ! nveglglessink
+demux.src_0 ! mux1.sink_0 nvstreammux name=mux1 width=1920 height=1080 batch-size=1 ! queue ! nvinfer config-file-path=dstest2_sgie2_config.txt ! nvdsosd ! nvvideoconvert ! nveglglessink \
+demux.src_1 ! mux2.sink_0 nvstreammux name=mux2 width=1920 height=1080 batch-size=1 ! queue ! nvdsosd ! nvvideoconvert ! nveglglessink
 ```
 
-Figure 2. shows the pipeline that works.
+Figure 2. shows the pipeline with the classifier in src_0 Output.
 
 <figure align="center">
-    <img src="./figures/pipeline_working.png" width="900">
-    <figcaption>Figure 2. Pipeline that works.</figcaption>
+    <img src="./figures/pipeline_1.png" width="900">
+    <figcaption>Figure 2. Secondary inference in nvstreammux src_0 output.</figcaption>
 </figure>
 
-**This doesn't work in Deepstream 6.3**
+**Secondary Classifier in Demuxer src_1**
 
-In this case the classifier is in the `src_1` output of the `nvstreamdemuxer` and we don't' see the car make in the sink. You can launch the example by executing the following inside the `/home/gstreamer_examples/` directory:
+In this case the classifier is in the `src_1` output of the `nvstreamdemuxer` and we can see the car make in the sink. You can launch the example by executing the following inside the `/home/gstreamer_examples/` directory:
 
 ```bash
 gst-launch-1.0 -e \
-nvstreammux name=mux width=1280 height=720 batch-size=2 ! \
+nvstreammux name=mux width=1920 height=1080 batch-size=2 ! \
 nvinferserver config-file-path=/opt/nvidia/deepstream/deepstream/samples/configs/deepstream-app-triton/config_infer_plan_engine_primary.txt batch-size=2 ! \
 nvtracker tracker-width=640 tracker-height=480 ll-config-file=config_tracker_NvDCF_perf.yml ll-lib-file=/opt/nvidia/deepstream/deepstream/lib/libnvds_nvmultiobjecttracker.so ! \
 nvstreamdemux name=demux per-stream-eos=true \
 nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! mux.sink_0 \
 nvurisrcbin uri=file:///opt/nvidia/deepstream/deepstream/samples/streams/sample_1080p_h264.mp4 ! queue ! mux.sink_1 \
-demux.src_0 ! queue ! nvdsosd ! nvvideoconvert ! nveglglessink \
-demux.src_1 ! queue ! nvinfer config-file-path=dstest2_sgie2_config.txt ! nvdsosd ! nvvideoconvert ! nveglglessink
+demux.src_0 ! mux1.sink_0 nvstreammux name=mux1 width=1920 height=1080 batch-size=1 ! queue ! nvdsosd ! nvvideoconvert ! nveglglessink \
+demux.src_1 ! mux2.sink_0 nvstreammux name=mux2 width=1920 height=1080 batch-size=1 ! queue ! nvinfer config-file-path=dstest2_sgie2_config.txt ! nvdsosd ! nvvideoconvert ! nveglglessink
 ```
 
-Figure 3. shows the pipeline that does not work.
+Figure 3. shows the pipeline with the classifier in src_1 Output.
 
 <figure align="center">
-    <img src="./figures/pipeline_not_working.png" width="900">
-    <figcaption>Figure 3. Pipeline that doesn not work.</figcaption>
+    <img src="./figures/pipeline_2.png" width="900">
+    <figcaption>Figure 3. Secondary inference in nvstreammux src_1 output.</figcaption>
 </figure>
 
