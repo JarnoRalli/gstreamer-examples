@@ -47,6 +47,11 @@ find_library(Deepstream_INFER_LIBRARY NAMES nvds_infer HINTS ${Deepstream_DIR} P
 #----------------------
 find_library(Deepstream_GST_HELPER_LIBRARY NAMES nvdsgst_helper HINTS ${Deepstream_DIR} PATH_SUFFIXES lib)
 
+#----------------------
+# Find nvdsgst_customhelper
+#----------------------
+find_library(Deepstream_GST_CUSTOM_HELPER_LIBRARY NAMES nvdsgst_customhelper HINTS ${Deepstream_DIR} PATH_SUFFIXES lib)
+
 #-------------------
 # Find nvdsgst_meta
 #-------------------
@@ -88,6 +93,7 @@ FIND_PACKAGE_HANDLE_STANDARD_ARGS(Deepstream
         Deepstream_INCLUDE_DIR_GST_PREPROCESS
         Deepstream_INFER_LIBRARY
         Deepstream_GST_HELPER_LIBRARY
+        Deepstream_GST_CUSTOM_HELPER_LIBRARY
         Deepstream_GST_META_LIBRARY
         Deepstream_META_LIBRARY
         Deepstream_BUFSURFACE_LIBRARY
@@ -110,6 +116,7 @@ if(Deepstream_FOUND)
             INTERFACE
                 ${Deepstream_INFER_LIBRARY}
                 ${Deepstream_GST_HELPER_LIBRARY}
+                ${Deepstream_GST_CUSTOM_HELPER_LIBRARY}
                 ${Deepstream_GST_META_LIBRARY}
                 ${Deepstream_META_LIBRARY}
                 ${Deepstream_BUFSURFACE_LIBRARY}

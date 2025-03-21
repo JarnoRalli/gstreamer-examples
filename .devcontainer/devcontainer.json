@@ -1,0 +1,23 @@
+{
+  "name": "DeepStream6.3-dev",
+  "build": {
+    "dockerfile": "../docker/Dockerfile-deepstream-6.3-devel",
+    "context": "..",
+    "args": {
+    }
+  },
+  "runArgs": [
+    "--gpus=all",
+    "-e", "NVIDIA_DRIVER_CAPABILITIES=all",
+    "-e", "DISPLAY=${env:DISPLAY}",
+    "-e", "XAUTHORITY=${env:XAUTHORITY}",
+    "-v", "/tmp/.X11-unix:/tmp/.X11-unix"
+  ],
+  "extensions": [
+    "ms-vscode.cpptools",
+    "ms-vscode.cmake-tools",
+    "ms-vscode.cpptools-extension-pack"
+  ],
+  "postCreateCommand": "",
+  "remoteUser": "root"
+}

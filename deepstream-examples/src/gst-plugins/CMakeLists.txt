@@ -15,3 +15,5 @@ if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${Deepstream_directory})
 else()
     message(FATAL_ERROR "Directory '${CMAKE_CURRENT_SOURCE_DIR}/${Deepstream_directory}' does not exist")
 endif()
+
+add_subdirectory(retinaface_postprocessor)
