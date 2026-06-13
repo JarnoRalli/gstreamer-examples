@@ -86,3 +86,45 @@ rtph264depay ! h264parse ! nvv4l2decoder ! queue ! nvvideoconvert ! queue ! \
 mux.sink_1 nvstreammux name=mux width=1920 height=1080 batch-size=1 live-source=1 ! \
 queue ! nvvideoconvert ! queue ! nvdsosd ! queue ! nvegltransform ! nveglglessink
 ```
+
+## 2.4 YOLO Inference
+
+This example uses the `burn-yoloxinference` for object detection. It requires GStreamer version >= 1.28. If you don't have
+a required version of GStreamer installed, the easiest way is to use the Docker container [Dockerfile-gstreamer-1.28](../docker/Dockerfile-gstreamer-1.28). First build the container:
+
+```bash
+docker build -t gstreamer-1.28 -f ../docker/Dockerfile-gstreamer-1.28 .
+```
+
+Once the container exists, you can start a session by running:
+
+```bash
+xhost +local:docker
+docker run --rm -it -e DISPLAY=$DISPLAY \
+-v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+--device /dev/dri \
+-v $(pwd):/workspace \
+gstreamer-1.28 /bin/bash
+```
+
+, and once inside the shell, you can run the following command in order to do inference for a single image:
+
+```bash
+ gst-launch-1.0 souphttpsrc location=https://raw.githubusercontent.com/tracel-ai/models/ab8c64bd7e1f45e99cc321ce900a5b5e6b97910c/yolox-burn/samples/dog_bike_man.jpg \
+     ! jpegdec ! videoconvertscale ! "video/x-raw,width=800,height=640" \
+     ! burn-yoloxinference ! yoloxtensordec label-file=COCO_classes.txt \
+     ! videoconvertscale ! objectdetectionoverlay \
+     ! videoconvertscale ! imagefreeze ! autovideosink -v
+```
+
+If you want to process a video, use the following command:
+
+```bash
+gst-launch-1.0 filesrc location=/workspace/your_video.mp4 \
+     ! qtdemux ! h264parse ! avdec_h264 \
+     ! videoconvertscale ! "video/x-raw,width=800,height=640" \
+     ! burn-yoloxinference ! yoloxtensordec label-file=COCO_classes.txt \
+     ! videoconvertscale ! objectdetectionoverlay \
+     ! videoconvertscale ! autovideosink
+```
+

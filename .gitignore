@@ -155,3 +155,6 @@ dmypy.json
 
 # TensorRT Engine files
 *.engine
+
+# Ignore Memsearch (https://github.com/zilliztech/memsearch) related files
+.memsearch/

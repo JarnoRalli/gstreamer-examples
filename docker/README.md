@@ -29,6 +29,14 @@ This directory contains docker files used for generating docker images where the
   * gstreamer1.0-plugins-bad
   * gstreamer1.0-plugins-ugly
   * gstreamer1.0-rtsp
+* [Dockerfile-gstreamer-1.28](Dockerfile-gstreamer-1.28)
+  * Docker container with GStreamer version 1.28 with [burn-yoloxinference](https://gstreamer.freedesktop.org/documentation/burn/?gi-language=c)
+  * Based on ubuntu:24.04
+  * Rust toolchain
+* [Dockerfile-gstreamer-1.28-cuda](Dockerfile-gstreamer-1.28-cuda)
+  * Docker container with GStreamer version 1.28 with [burn-yoloxinference](https://gstreamer.freedesktop.org/documentation/burn/?gi-language=c)
+  * Based on cuda:12.6.0-devel-ubuntu24.04
+  * Rust toolchain
 
 # 1 Creating Docker Images
 

@@ -1,0 +1,79 @@
+# Use Ubuntu 24.04 as the building base
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    python3 \
+    python3-pip \
+    ninja-build \
+    flex \
+    bison \
+    curl \
+    cmake \
+    pkg-config \
+    libssl-dev \
+    libglib2.0-dev \
+    libasound2-dev \
+    libpulse-dev \
+    libv4l-dev \
+    libxv-dev \
+    libx11-dev \
+    nasm \
+    yasm \
+    libgl1-mesa-dev \
+    libegl1-mesa-dev \
+    libgles2-mesa-dev \
+    vulkan-tools \
+    libvulkan-dev \
+    mesa-vulkan-drivers \
+    libclang-dev \
+    llvm \
+    libsoup-3.0-dev \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libvulkan1 \
+    vulkan-validationlayers \
+    libdrm-dev \
+    libpciaccess-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install modern Meson
+RUN pip3 install --break-system-packages meson
+
+# Install Rust toolchain
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install cargo-c
+RUN cargo install cargo-c
+
+WORKDIR /opt
+RUN git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git --depth 1 --branch 1.28.4
+
+WORKDIR /opt/gstreamer
+
+# Ensure the Rust plugins sub-project checks out the matching 1.28.4 version
+# Note: GStreamer manages subprojects via .wrap files; we update the track branch to point to the stable release
+RUN sed -i 's/revision = main/revision = 1.28.4/g' subprojects/gst-plugins-rs.wrap
+
+# Configure and build
+RUN meson setup build \
+    -Drs=enabled \
+    -Dprefix=/usr/local \
+    -Dtests=disabled \
+    -Dexamples=disabled \
+    -Ddoc=disabled \
+    && meson compile -C build \
+    && meson install -C build
+
+# Set environment variables absolutely
+ENV GST_PLUGIN_PATH=/usr/local/lib/x86_64-linux-gnu/gstreamer-1.0
+ENV LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu
+
+# Verify the installation on startup
+WORKDIR /workspace
+CMD ["gst-inspect-1.0", "--version"]
