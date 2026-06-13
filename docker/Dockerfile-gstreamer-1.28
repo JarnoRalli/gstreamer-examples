@@ -56,9 +56,15 @@ RUN git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git --depth 1 -
 
 WORKDIR /opt/gstreamer
 
-# Ensure the Rust plugins sub-project checks out the matching 1.28.4 version
-# Note: GStreamer manages subprojects via .wrap files; we update the track branch to point to the stable release
-RUN sed -i 's/revision = main/revision = 1.28.4/g' subprojects/gst-plugins-rs.wrap
+# =========================================================================
+# MANUAL CLONE AND MODIFICATION OF GST-PLUGINS-RS
+# =========================================================================
+# 1. Directly clone the matching 1.28.4 tag of gst-plugins-rs into subprojects
+RUN git clone --depth 1 --branch gstreamer-1.28.4 https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs.git subprojects/gst-plugins-rs
+
+# 2. Modify Cargo.toml of the burn plugin to make "vulkan" a default feature
+RUN sed -i 's/default = \["pretrained", "ndarray"\]/default = \["pretrained", "vulkan"\]/g' subprojects/gst-plugins-rs/analytics/burn/Cargo.toml
+# =========================================================================
 
 # Configure and build
 RUN meson setup build \

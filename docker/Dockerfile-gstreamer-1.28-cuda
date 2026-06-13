@@ -60,8 +60,112 @@ WORKDIR /opt/gstreamer
 # 1. Directly clone the matching 1.28.4 tag of gst-plugins-rs into subprojects
 RUN git clone --depth 1 --branch gstreamer-1.28.4 https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs.git subprojects/gst-plugins-rs
 
-# 2. Modify Cargo.toml of the burn plugin to make "vulkan" a default feature
-RUN sed -i 's/default = \["pretrained", "ndarray"\]/default = \["pretrained", "vulkan"\]/g' subprojects/gst-plugins-rs/analytics/burn/Cargo.toml
+# 2. Write patch script and execute it to enable Vulkan & CUDA in the source
+RUN cat << 'EOF' > patch_burn.py
+import sys
+
+# 1. Modify Cargo.toml
+with open('subprojects/gst-plugins-rs/analytics/burn/Cargo.toml', 'r') as f:
+    cargo = f.read()
+cargo = cargo.replace('vulkan = ["burn/vulkan"]', 'vulkan = ["burn/vulkan"]\ncuda = ["burn/cuda"]')
+cargo = cargo.replace('default = ["pretrained", "ndarray"]', 'default = ["pretrained", "vulkan", "cuda"]')
+with open('subprojects/gst-plugins-rs/analytics/burn/Cargo.toml', 'w') as f:
+    f.write(cargo)
+
+# 2. Modify lib.rs
+with open('subprojects/gst-plugins-rs/analytics/burn/src/lib.rs', 'r') as f:
+    lib = f.read()
+lib = lib.replace('Vulkan = 2,', 'Vulkan = 2,\n    #[cfg(feature = "cuda")]\n    Cuda = 3,')
+with open('subprojects/gst-plugins-rs/analytics/burn/src/lib.rs', 'w') as f:
+    f.write(lib)
+
+# 3. Modify imp.rs
+with open('subprojects/gst-plugins-rs/analytics/burn/src/yoloxinference/imp.rs', 'r') as f:
+    imp = f.read()
+
+vulkan_block = """            #[cfg(feature = "vulkan")]
+            BackendType::Vulkan => {
+                let device = match (settings.cubecl_type_id, settings.cubecl_index_id) {
+                    (u32::MAX, _) => Device::<backend::Vulkan>::default(),
+                    (type_id, index_id) => {
+                        use burn::tensor::backend::{Device as _, DeviceId};
+
+                        Device::<backend::Vulkan>::from_id(DeviceId {
+                            type_id: type_id as u16,
+                            index_id,
+                        })
+                    }
+                };
+                Self::load_model_internal::<backend::Vulkan>(device, settings)?
+            }"""
+
+cuda_block = """            #[cfg(feature = "vulkan")]
+            BackendType::Vulkan => {
+                let device = match (settings.cubecl_type_id, settings.cubecl_index_id) {
+                    (u32::MAX, _) => Device::<backend::Vulkan>::default(),
+                    (type_id, index_id) => {
+                        use burn::tensor::backend::{Device as _, DeviceId};
+
+                        Device::<backend::Vulkan>::from_id(DeviceId {
+                            type_id: type_id as u16,
+                            index_id,
+                        })
+                    }
+                };
+                Self::load_model_internal::<backend::Vulkan>(device, settings)?
+            }
+            #[cfg(feature = "cuda")]
+            BackendType::Cuda => {
+                let device = match (settings.cubecl_type_id, settings.cubecl_index_id) {
+                    (u32::MAX, _) => Device::<backend::Cuda>::default(),
+                    (type_id, index_id) => {
+                        use burn::tensor::backend::{Device as _, DeviceId};
+
+                        Device::<backend::Cuda>::from_id(DeviceId {
+                            type_id: type_id as u16,
+                            index_id,
+                        })
+                    }
+                };
+                Self::load_model_internal::<backend::Cuda>(device, settings)?
+            }"""
+
+if vulkan_block in imp:
+    imp = imp.replace(vulkan_block, cuda_block)
+else:
+    # Handle possible CRLF line endings
+    imp = imp.replace(vulkan_block.replace('\n', '\r\n'), cuda_block.replace('\n', '\r\n'))
+
+with open('subprojects/gst-plugins-rs/analytics/burn/src/yoloxinference/imp.rs', 'w') as f:
+    f.write(imp)
+
+EOF
+RUN python3 patch_burn.py && rm patch_burn.py
+
+# 3. Pre-fetch cargo dependencies so we can patch any library-specific bugs (e.g. Blackwell GPU support in cubecl)
+RUN cargo fetch --manifest-path subprojects/gst-plugins-rs/Cargo.toml
+
+# 4. Patch cubecl-cuda to clamp architecture version to sm_89 (Lovelace) on newer GPUs (like Hopper/Blackwell/10.0+)
+# because:
+# a) CUDA 12.6.0 NVRTC compiler does not support sm_100 (Blackwell) architectures.
+# b) Hopper's sm_90a uses hardware-specific extensions that are binary/PTX incompatible with Blackwell.
+# Clamping to sm_89 (Lovelace) generates fully portable PTX that compiles and runs flawlessly on both Hopper and Blackwell.
+RUN python3 <<'EOF'
+import glob, os
+for path in glob.glob("/root/.cargo/registry/src/*/cubecl-cuda-*/src/runtime.rs"):
+    print("Patching:", path)
+    with open(path, "r") as f:
+        code = f.read()
+    old_str = "arch_major * 10 + minor"
+    new_str = "std::cmp::min(arch_major * 10 + minor, 89)"
+    if old_str in code:
+        code = code.replace(old_str, new_str)
+        with open(path, "w") as f:
+            f.write(code)
+        print("Successfully patched!")
+    else:
+        print("Target string not found in runtime.rs")
+EOF
 # =========================================================================
 
 # Configure and build
