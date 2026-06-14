@@ -134,6 +134,9 @@ dmypy.json
 # mp4 video files
 *.mp4
 
+# avi video files
+*.avi
+
 # mkv video files
 *.mkv
 
@@ -155,3 +158,6 @@ dmypy.json
 
 # TensorRT Engine files
 *.engine
+
+# Ignore Memsearch (https://github.com/zilliztech/memsearch) related files
+.memsearch/
