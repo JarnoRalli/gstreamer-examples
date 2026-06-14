@@ -90,13 +90,24 @@ queue ! nvvideoconvert ! queue ! nvdsosd ! queue ! nvegltransform ! nveglglessin
 ## 2.4 YOLO Inference
 
 This example uses the `burn-yoloxinference` for object detection. It requires GStreamer version >= 1.28. If you don't have
-a required version of GStreamer installed, the easiest way is to use the Docker container [Dockerfile-gstreamer-1.28](../docker/Dockerfile-gstreamer-1.28). First build the container:
+a required version of GStreamer installed, the easiest way is to use the following Docker containers
+
+* [Dockerfile-gstreamer-1.28](../docker/Dockerfile-gstreamer-1.28)
+  * Supports `nd-array` and `vulkan` backends
+* [Dockerfile-gstreamer-1.28-cuda](../docker/Dockerfile-gstreamer-1.28-cuda)
+  * Supports `nd-array`, `vulkan` and `cuda` backends
+
+Inference backend can be chosen with the `backend-type` parameter in the `burn-yoloxinference` element.
+
+### 2.4.1 Nd-array and Vulkan Backends
+
+First build the container
 
 ```bash
 docker build -t gstreamer-1.28 -f ../docker/Dockerfile-gstreamer-1.28 .
 ```
 
-Once the container exists, you can start a session by running:
+Once the container exists, you can start a session by running
 
 ```bash
 xhost +local:docker
@@ -107,24 +118,64 @@ docker run --rm -it -e DISPLAY=$DISPLAY \
 gstreamer-1.28 /bin/bash
 ```
 
-, and once inside the shell, you can run the following command in order to do inference for a single image:
+, and once inside the shell, you can run the following command in order to do inference for a single image
 
 ```bash
  gst-launch-1.0 souphttpsrc location=https://raw.githubusercontent.com/tracel-ai/models/ab8c64bd7e1f45e99cc321ce900a5b5e6b97910c/yolox-burn/samples/dog_bike_man.jpg \
      ! jpegdec ! videoconvertscale ! "video/x-raw,width=800,height=640" \
-     ! burn-yoloxinference ! yoloxtensordec label-file=COCO_classes.txt \
+     ! burn-yoloxinference backend-type=nd-array ! yoloxtensordec label-file=COCO_classes.txt \
      ! videoconvertscale ! objectdetectionoverlay \
      ! videoconvertscale ! imagefreeze ! autovideosink -v
 ```
 
-If you want to process a video, use the following command:
+If you want to process a video, use the following command
 
 ```bash
 gst-launch-1.0 filesrc location=/workspace/your_video.mp4 \
      ! qtdemux ! h264parse ! avdec_h264 \
      ! videoconvertscale ! "video/x-raw,width=800,height=640" \
-     ! burn-yoloxinference ! yoloxtensordec label-file=COCO_classes.txt \
+     ! burn-yoloxinference backend-type=nd-array ! yoloxtensordec label-file=COCO_classes.txt \
      ! videoconvertscale ! objectdetectionoverlay \
      ! videoconvertscale ! autovideosink
 ```
 
+### 2.4.1 Cuda Backend
+
+First build the container
+
+```bash
+docker build -t gstreamer-1.28-cuda -f ../docker/Dockerfile-gstreamer-1.28-cuda .
+```
+
+Once the container exists, you can start a session by running
+
+```bash
+xhost +local:docker
+docker run --rm -it -e DISPLAY=$DISPLAY \
+-v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+--device /dev/dri \
+-v $(pwd):/workspace \
+--gpus=all \
+gstreamer-1.28-cuda /bin/bash
+```
+
+, and once inside the shell, you can run the following command in order to do inference for a single image
+
+```bash
+ gst-launch-1.0 souphttpsrc location=https://raw.githubusercontent.com/tracel-ai/models/ab8c64bd7e1f45e99cc321ce900a5b5e6b97910c/yolox-burn/samples/dog_bike_man.jpg \
+     ! jpegdec ! videoconvertscale ! "video/x-raw,width=800,height=640" \
+     ! burn-yoloxinference backend-type=cuda ! yoloxtensordec label-file=COCO_classes.txt \
+     ! videoconvertscale ! objectdetectionoverlay \
+     ! videoconvertscale ! imagefreeze ! autovideosink -v
+```
+
+If you want to process a video, use the following command
+
+```bash
+gst-launch-1.0 filesrc location=/workspace/your_video.mp4 \
+     ! qtdemux ! h264parse ! avdec_h264 \
+     ! videoconvertscale ! "video/x-raw,width=800,height=640" \
+     ! burn-yoloxinference backend-type=cuda ! yoloxtensordec label-file=COCO_classes.txt \
+     ! videoconvertscale ! objectdetectionoverlay \
+     ! videoconvertscale ! autovideosink
+```

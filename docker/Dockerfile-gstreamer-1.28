@@ -62,8 +62,8 @@ WORKDIR /opt/gstreamer
 # 1. Directly clone the matching 1.28.4 tag of gst-plugins-rs into subprojects
 RUN git clone --depth 1 --branch gstreamer-1.28.4 https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs.git subprojects/gst-plugins-rs
 
-# 2. Modify Cargo.toml of the burn plugin to make "vulkan" a default feature
-RUN sed -i 's/default = \["pretrained", "ndarray"\]/default = \["pretrained", "vulkan"\]/g' subprojects/gst-plugins-rs/analytics/burn/Cargo.toml
+# 2. Modify Cargo.toml of the burn plugin to add "vulkan" as a backend
+RUN sed -i 's/default = \["pretrained", "ndarray"\]/default = \["pretrained", "ndarray", "vulkan"\]/g' subprojects/gst-plugins-rs/analytics/burn/Cargo.toml
 # =========================================================================
 
 # Configure and build

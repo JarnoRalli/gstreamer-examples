@@ -68,7 +68,7 @@ import sys
 with open('subprojects/gst-plugins-rs/analytics/burn/Cargo.toml', 'r') as f:
     cargo = f.read()
 cargo = cargo.replace('vulkan = ["burn/vulkan"]', 'vulkan = ["burn/vulkan"]\ncuda = ["burn/cuda"]')
-cargo = cargo.replace('default = ["pretrained", "ndarray"]', 'default = ["pretrained", "vulkan", "cuda"]')
+cargo = cargo.replace('default = ["pretrained", "ndarray"]', 'default = ["pretrained", "ndarray", "vulkan", "cuda"]')
 with open('subprojects/gst-plugins-rs/analytics/burn/Cargo.toml', 'w') as f:
     f.write(cargo)
 
