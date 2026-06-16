@@ -134,12 +134,15 @@ If you want to process a video, use the following command
 gst-launch-1.0 filesrc location=/workspace/your_video.mp4 \
      ! qtdemux ! h264parse ! avdec_h264 \
      ! videoconvertscale ! "video/x-raw,width=800,height=640" \
-     ! burn-yoloxinference backend-type=nd-array ! yoloxtensordec label-file=COCO_classes.txt \
+     ! queue max-size-buffers=2 \
+     ! burn-yoloxinference backend-type=nd-array model-type=tiny \
+     ! queue max-size-buffers=2 \
+     ! yoloxtensordec label-file=COCO_classes.txt box-confidence-threshold=0.8 class-confidence-threshold=0.8 \
      ! videoconvertscale ! objectdetectionoverlay \
-     ! videoconvertscale ! autovideosink
+     ! videoconvertscale ! autovideosink sync=false
 ```
 
-### 2.4.1 Cuda Backend
+### 2.4.2 Cuda Backend
 
 First build the container
 
@@ -156,6 +159,7 @@ docker run --rm -it -e DISPLAY=$DISPLAY \
 --device /dev/dri \
 -v $(pwd):/workspace \
 --gpus=all \
+-e NVIDIA_DRIVER_CAPABILITIES=compute,video,utility \
 gstreamer-1.28-cuda /bin/bash
 ```
 
@@ -173,9 +177,33 @@ If you want to process a video, use the following command
 
 ```bash
 gst-launch-1.0 filesrc location=/workspace/your_video.mp4 \
-     ! qtdemux ! h264parse ! avdec_h264 \
-     ! videoconvertscale ! "video/x-raw,width=800,height=640" \
-     ! burn-yoloxinference backend-type=cuda ! yoloxtensordec label-file=COCO_classes.txt \
-     ! videoconvertscale ! objectdetectionoverlay \
-     ! videoconvertscale ! autovideosink
+     ! qtdemux \
+     ! h264parse \
+     ! nvh264dec \
+     ! cudaconvertscale \
+     ! cudadownload \
+     ! "video/x-raw,width=800,height=640,format=RGB" \
+     ! queue max-size-buffers=2 \
+     ! burn-yoloxinference backend-type=cuda model-type=medium \
+     ! queue max-size-buffers=2 \
+     ! yoloxtensordec label-file=COCO_classes.txt box-confidence-threshold=0.8 class-confidence-threshold=0.8 \
+     ! videoconvert \
+     ! objectdetectionoverlay \
+     ! videoconvert \
+     ! autovideosink sync=false
 ```
+
+### 2.4.3 YOLOX with Tracker
+
+If you want to use tracker with the YOLOX, then use the [gst-bytetrack.py](gst-bytetrack.py) Python program. First launch the corresponding Docker (see above) and then run the code with:
+
+```bash
+python3 ./gst-bytetrack.py -i /workspace/your_video.mp4 -b cuda -t bytetrack
+```
+
+In order to see all the command line arguments, run
+
+```bash
+python3 ./gst-bytetrack.py --help
+```
+
