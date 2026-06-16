@@ -39,10 +39,25 @@ RUN apt-get update && apt-get install -y \
     vulkan-validationlayers \
     libdrm-dev \
     libpciaccess-dev \
+    python3-dev \
+    gobject-introspection \
+    libgirepository1.0-dev \
+    libx264-dev \
+    libx265-dev \
+    libvpx-dev \
+    libopus-dev \
+    libvorbis-dev \
+    libogg-dev \
+    libtheora-dev \
+    libfdk-aac-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libavfilter-dev \
+    libswscale-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install modern Meson
-RUN pip3 install --break-system-packages meson
+RUN pip3 install --break-system-packages meson pygobject supervision
 
 # Install Rust toolchain
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -68,17 +83,27 @@ RUN sed -i 's/default = \["pretrained", "ndarray"\]/default = \["pretrained", "n
 
 # Configure and build
 RUN meson setup build \
+    --buildtype=release \
     -Drs=enabled \
     -Dprefix=/usr/local \
     -Dtests=disabled \
     -Dexamples=disabled \
     -Ddoc=disabled \
+    -Dintrospection=enabled \
+    -Dpython=enabled \
+    -Dgst-plugins-bad:gl=enabled \
+    -Dgst-plugins-base:gl=enabled \
+    -Dgpl=enabled \
     && meson compile -C build \
     && meson install -C build
 
 # Set environment variables absolutely
 ENV GST_PLUGIN_PATH=/usr/local/lib/x86_64-linux-gnu/gstreamer-1.0
 ENV LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu
+
+# Discover GStreamer bindings
+ENV PYTHONPATH=/usr/local/lib/python3/dist-packages:/usr/local/lib/python3.12/site-packages
+ENV GI_TYPELIB_PATH=/usr/local/lib/x86_64-linux-gnu/girepository-1.0
 
 # Verify the installation on startup
 WORKDIR /workspace

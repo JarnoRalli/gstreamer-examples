@@ -38,10 +38,34 @@ RUN apt-get update && apt-get install -y \
     libxext-dev \
     libxcb1-dev \
     libxcb-shm0-dev \
+    python3-dev \
+    gobject-introspection \
+    libgirepository1.0-dev \
+    libx264-dev \
+    libx265-dev \
+    libvpx-dev \
+    libopus-dev \
+    libvorbis-dev \
+    libogg-dev \
+    libtheora-dev \
+    libfdk-aac-dev \
+    libavcodec-dev \
+    libavformat-dev \
+    libavfilter-dev \
+    libswscale-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Clone and install the FFmpeg NVIDIA codec headers required by GStreamer
+RUN git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git /tmp/nv-codec-headers && \
+    cd /tmp/nv-codec-headers && \
+    make install && \
+    rm -rf /tmp/nv-codec-headers
+
+# Tell pkg-config where to find the newly installed ffnvcodec.pc
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}
+
 # Install modern Meson
-RUN pip3 install --break-system-packages meson
+RUN pip3 install --break-system-packages meson pygobject supervision
 
 # Install stable Rust toolchain
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
@@ -170,6 +194,7 @@ EOF
 
 # Configure and build
 RUN meson setup build \
+    --buildtype=release \
     -Drs=enabled \
     -Dprefix=/usr/local \
     -Dtests=disabled \
@@ -178,12 +203,19 @@ RUN meson setup build \
     -Dgst-plugins-bad:nvcodec=enabled \
     -Dgst-plugins-bad:gl=enabled \
     -Dgst-plugins-base:gl=enabled \
+    -Dgpl=enabled \
+    -Dintrospection=enabled \
+    -Dpython=enabled \
     && meson compile -C build \
     && meson install -C build
 
 # Set environment variables for the shared GStreamer paths
 ENV GST_PLUGIN_PATH=/usr/local/lib/x86_64-linux-gnu/gstreamer-1.0
 ENV LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu
+
+# Discover GStreamer bindings
+ENV PYTHONPATH=/usr/local/lib/python3/dist-packages:/usr/local/lib/python3.12/site-packages
+ENV GI_TYPELIB_PATH=/usr/local/lib/x86_64-linux-gnu/girepository-1.0
 
 WORKDIR /workspace
 CMD ["gst-inspect-1.0", "burn-yoloxinference"]
