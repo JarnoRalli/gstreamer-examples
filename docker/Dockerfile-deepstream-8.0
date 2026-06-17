@@ -1,0 +1,54 @@
+FROM nvcr.io/nvidia/deepstream:8.0-samples-multiarch
+
+# Enable video driver libraries at runtime
+ENV NVIDIA_DRIVER_CAPABILITIES=$NVIDIA_DRIVER_CAPABILITIES,video,compute,graphics,utility
+
+# Install required packages (Updated for Ubuntu 24.04)
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    wget python3 python3-pip python3-venv python-is-python3 python3-dev \
+    libcairo2-dev libjpeg-dev libgif-dev \
+    libgstreamer1.0-0 \
+    gstreamer1.0-tools \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-libav \
+    libgstreamer-plugins-base1.0-dev \
+    libgstrtspserver-1.0-0 \
+    libjansson4 \
+    libyaml-cpp-dev \
+    gcc \
+    make \
+    libglvnd0 \
+    libgl1 \
+    libglx0 \
+    libegl1 \
+    glmark2 \
+    mesa-utils \
+    git && \
+    rm -rf /var/lib/apt/lists/* && \
+    apt-get autoremove -y
+
+# Upgrade pip and build tools
+RUN pip install build scikit-image --break-system-packages
+
+# Install PyTorch compiled for modern CUDA 12.x
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128 --break-system-packages
+
+# Note: DeepStream 8.0 introduced the new "Python Service Maker" API.
+# If your legacy code relies strictly on the old pyds bindings, you can build them from the
+# legacy GitHub repo, or use the last compatible wheel.
+RUN wget https://github.com/NVIDIA-AI-IOT/deepstream_python_apps/releases/download/v1.1.11/pyds-1.1.11-py3-none-linux_x86_64.whl && \
+    pip3 install ./pyds-1.1.11-py3-none-linux_x86_64.whl --break-system-packages && \
+    rm pyds-1.1.11-py3-none-linux_x86_64.whl
+
+# Install the helper-package
+RUN git clone https://github.com/JarnoRalli/gstreamer-examples.git && \
+    cd gstreamer-examples/helper-package && \
+    python3 -m build && \
+    cd dist && \
+    if [ -f helpers-*.whl ]; then pip3 install helpers-*.whl --break-system-packages; else echo "Build failed!"; exit 1; fi && \
+    pip3 list | grep helpers && \
+    cd ../../.. && \
+    rm -rf gstreamer-examples

@@ -161,3 +161,6 @@ dmypy.json
 
 # Ignore Memsearch (https://github.com/zilliztech/memsearch) related files
 .memsearch/
+
+# Ignore Torch models
+.torch/

@@ -217,5 +217,9 @@ ENV LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu
 ENV PYTHONPATH=/usr/local/lib/python3/dist-packages:/usr/local/lib/python3.12/site-packages
 ENV GI_TYPELIB_PATH=/usr/local/lib/x86_64-linux-gnu/girepository-1.0
 
+# Install PyTorch (with CUDA support) and CuPy for zero-copy CUDA memory interop at the end to leverage layer cache
+RUN pip3 install --break-system-packages cupy-cuda12x loguru psutil tabulate
+RUN pip3 install --break-system-packages torch torchvision --index-url https://download.pytorch.org/whl/cu128
+
 WORKDIR /workspace
 CMD ["gst-inspect-1.0", "burn-yoloxinference"]
