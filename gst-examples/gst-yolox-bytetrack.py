@@ -8,6 +8,7 @@ import argparse
 import sys
 import os
 import ctypes
+import ctypes.util
 from typing import List, Tuple, Dict, Any, Optional
 
 import torch
@@ -36,7 +37,28 @@ except Exception:
 
 
 def compute_iou(boxA: List[float], boxB: List[float]) -> float:
-    """Compute the Intersection over Union (IoU) of two bounding boxes."""
+    """
+    Compute the Intersection over Union (IoU) of two bounding boxes.
+
+    The IoU measures the overlap between two bounding boxes to evaluate how
+    well they correspond to the same physical object. This is a critical metric
+    for both non-maximum suppression (NMS) and object tracking, where bounding
+    boxes from successive frames are matched.
+
+    Parameters
+    ----------
+    boxA : list of float
+        The first bounding box specified as [x, y, width, height] or [x1, y1, x2, y2].
+        Both boxes must use the same coordinate system and convention.
+    boxB : list of float
+        The second bounding box specified using the same format as boxA.
+
+    Returns
+    -------
+    float
+        The calculated Intersection over Union value, in the range [0.0, 1.0].
+        Returns 0.0 if there is no overlap or if the union area is zero.
+    """
     xA = max(boxA[0], boxB[0])
     yA = max(boxA[1], boxB[1])
     xB = min(boxA[0] + boxA[2], boxB[0] + boxB[2])
@@ -54,12 +76,45 @@ def compute_iou(boxA: List[float], boxB: List[float]) -> float:
 
 class GstCUDAArrayWrapper:
     """
-    Exposes GStreamer CUdeviceptr directly to PyTorch
-    via the __cuda_array_interface__ protocol (Zero-Copy).
+    A class that exposes a GStreamer CUdeviceptr directly to PyTorch.
+
+    This wrapper implements the `__cuda_array_interface__` protocol (version 3),
+    enabling zero-copy data transfer from GStreamer CUDA memory buffers directly
+    into PyTorch tensors. By avoiding intermediate CPU copies or driver-level
+    re-allocations, it dramatically reduces latency and GPU-CPU-GPU roundtrips
+    during inference pipelines.
+
+    Attributes
+    ----------
+    __cuda_array_interface__ : dict
+        A dictionary compliant with the CUDA Array Interface protocol standard.
     """
 
-    def __init__(self, ptr_val, shape, strides, dtype_str="|u1"):
-        self.__cuda_array_interface__ = {
+    def __init__(
+        self,
+        ptr_val: int,
+        shape: Tuple[int, ...],
+        strides: Optional[Tuple[int, ...]],
+        dtype_str: str = "|u1",
+    ) -> None:
+        """
+        Initialize the CUDA array wrapper with memory buffer parameters.
+
+        Parameters
+        ----------
+        ptr_val : int
+            The numeric address of the GPU memory buffer (the CUdeviceptr).
+        shape : tuple of int
+            The shape of the array (e.g., (height, width, channels)).
+        strides : tuple of int or None
+            The strides of the array in bytes for each dimension. If None,
+            the array is assumed to be C-contiguous.
+        dtype_str : str, optional
+            The typestr representing the data type in the format specified by
+            the CUDA Array Interface (e.g., "|u1" for uint8/unsigned byte).
+            Default is "|u1".
+        """
+        self.__cuda_array_interface__: Dict[str, Any] = {
             "version": 3,
             "data": (ptr_val, False),  # (pointer address, read_only)
             "shape": shape,
@@ -81,38 +136,160 @@ class GstMapInfo(ctypes.Structure):
     ]
 
 
-try:
-    libgst = ctypes.CDLL("libgstreamer-1.0.so.0")
-    libgst.gst_memory_map.argtypes = [
-        ctypes.c_void_p,
-        ctypes.POINTER(GstMapInfo),
-        ctypes.c_int,
+def load_gstreamer_library() -> Optional[ctypes.CDLL]:
+    """
+    Dynamically locate and load the GStreamer shared library.
+
+    This helper uses `ctypes.util.find_library` to locate the GStreamer library path
+    on the current system (including support for various OS/platforms) and falls
+    back to common Linux library filenames if standard lookup fails. This is crucial
+    for cross-platform compatibility and future-proofing against library version/extension
+    naming changes.
+
+    Returns
+    -------
+    ctypes.CDLL or None
+        The loaded CDLL object for GStreamer if successful, otherwise None.
+    """
+    # 1. Try standard dynamic finder (e.g. finds 'libgstreamer-1.0.so.0' on Ubuntu)
+    path = ctypes.util.find_library("gstreamer-1.0")
+    if path:
+        try:
+            return ctypes.CDLL(path)
+        except Exception:
+            pass
+
+    # 2. Hardcoded fallback list for cross-platform/future naming differences
+    fallbacks = [
+        "libgstreamer-1.0.so.0",  # Standard Linux
+        "libgstreamer-1.0.so",  # Linux dev/symlink
+        "libgstreamer-1.0.0.dylib",  # macOS
+        "gstreamer-1.0-0.dll",  # Windows
     ]
-    libgst.gst_memory_map.restype = ctypes.c_bool
-    libgst.gst_memory_unmap.argtypes = [ctypes.c_void_p, ctypes.POINTER(GstMapInfo)]
-    libgst.gst_memory_unmap.restype = None
-    HAS_CTYPES_MAP = True
-except Exception:
-    HAS_CTYPES_MAP = False
+    for name in fallbacks:
+        try:
+            return ctypes.CDLL(name)
+        except Exception:
+            pass
+    return None
 
 
-try:
-    libgstcuda = ctypes.CDLL("libgstcuda-1.0.so.0")
-    libgstcuda.gst_cuda_memory_sync.argtypes = [ctypes.c_void_p]
-    libgstcuda.gst_cuda_memory_sync.restype = None
-    HAS_GST_CUDA_SYNC = True
-except Exception:
-    HAS_GST_CUDA_SYNC = False
+def load_gstcuda_library() -> Optional[ctypes.CDLL]:
+    """
+    Dynamically locate and load the GStreamer GstCuda shared library.
+
+    This helper uses `ctypes.util.find_library` to locate the gstcuda library path
+    on the current system and falls back to common Linux/Windows/macOS library
+    filenames if standard lookup fails. GstCuda is necessary for CUDA memory synchronization.
+
+    Returns
+    -------
+    ctypes.CDLL or None
+        The loaded CDLL object for GstCuda if successful, otherwise None.
+    """
+    # 1. Try standard dynamic finder
+    path = ctypes.util.find_library("gstcuda-1.0")
+    if path:
+        try:
+            return ctypes.CDLL(path)
+        except Exception:
+            pass
+
+    # 2. Hardcoded fallback list
+    fallbacks = [
+        "libgstcuda-1.0.so.0",  # Standard Linux
+        "libgstcuda-1.0.so",  # Linux dev/symlink
+        "libgstcuda-1.0.0.dylib",  # macOS
+        "gstcuda-1.0-0.dll",  # Windows
+    ]
+    for name in fallbacks:
+        try:
+            return ctypes.CDLL(name)
+        except Exception:
+            pass
+    return None
+
+
+# Resolve and load gstreamer C API functions dynamically
+libgst = load_gstreamer_library()
+HAS_CTYPES_MAP = False
+
+if libgst is not None:
+    try:
+        # Bind gst_memory_map and gst_memory_unmap to bypass Python bindings limitations.
+        # This is strictly required to fetch the raw CUdeviceptr memory addresses
+        # of GStreamer buffers, enabling zero-copy GPU memory passing to PyTorch.
+        libgst.gst_memory_map.argtypes = [
+            ctypes.c_void_p,
+            ctypes.POINTER(GstMapInfo),
+            ctypes.c_int,
+        ]
+        libgst.gst_memory_map.restype = ctypes.c_bool
+        libgst.gst_memory_unmap.argtypes = [ctypes.c_void_p, ctypes.POINTER(GstMapInfo)]
+        libgst.gst_memory_unmap.restype = None
+        HAS_CTYPES_MAP = True
+    except Exception as e:
+        print(f"[GstYolox] Failed to bind GStreamer memory map functions: {e}")
+
+# Resolve and load gstcuda C API functions dynamically
+libgstcuda = load_gstcuda_library()
+HAS_GST_CUDA_SYNC = False
+
+if libgstcuda is not None:
+    try:
+        # Bind gst_cuda_memory_sync to prevent race conditions. This is strictly required
+        # to ensure GStreamer asynchronously finishes writing raw frame data on its CUDA stream
+        # before PyTorch reads from it asynchronously on its stream (preventing flickering/segfaults).
+        libgstcuda.gst_cuda_memory_sync.argtypes = [ctypes.c_void_p]
+        libgstcuda.gst_cuda_memory_sync.restype = None
+        HAS_GST_CUDA_SYNC = True
+    except Exception as e:
+        print(f"[GstYolox] Failed to bind GstCuda sync functions: {e}")
 
 
 class SimpleTracker:
-    """A simple Intersection-over-Union (IoU) tracker for bounding boxes."""
+    """
+    A simple Intersection-over-Union (IoU) tracker for bounding boxes.
+
+    This tracker associates detections across consecutive video frames by computing the
+    IoU between the bounding boxes of existing active tracks and newly detected boxes.
+    It is lightweight, relies on no appearance models or motion models (like Kalman filters),
+    and is designed for scenarios with high frame rates and relatively slow-moving objects.
+
+    Attributes
+    ----------
+    next_id : int
+        The unique tracking identifier to be assigned to the next newly created track.
+    tracks : dict of {int: list of float}
+        A mapping of active track IDs to their latest bounding box coordinates
+        represented as [x, y, width, height].
+    """
 
     def __init__(self) -> None:
+        """Initialize the SimpleTracker with an empty list of active tracks."""
         self.next_id: int = 1
         self.tracks: Dict[int, List[float]] = {}
 
     def update(self, detections: List[List[float]]) -> List[Tuple[int, List[float]]]:
+        """
+        Update the tracker state with a new set of bounding box detections.
+
+        This method attempts to match the current frame's detections with existing tracks
+        using a greedy IoU matching strategy. Unmatched tracks are discarded, and unmatched
+        detections are instantiated as new tracks with unique IDs.
+
+        Parameters
+        ----------
+        detections : list of list of float
+            A list of bounding box coordinates from the latest frame, where each bounding
+            box is a list of floats representing [x, y, width, height].
+
+        Returns
+        -------
+        list of tuple of (int, list of float)
+            A list of active tracks after update, where each track is represented as a
+            tuple containing the track ID (int) and its assigned bounding box (list of float).
+        """
         new_tracks: Dict[int, List[float]] = {}
         matched_detections = set()
 
@@ -142,8 +319,44 @@ class SimpleTracker:
 
 class GstYoloxByteTrack(GstBase.BaseTransform):
     """
-    GStreamer Python transform element that runs YOLOX via PyTorch
-    (with zero-copy CUDA memory) and applies object tracking.
+    GStreamer Python transform element that runs YOLOX via PyTorch.
+
+    This class subclasses `GstBase.BaseTransform` to perform in-place zero-copy
+    image processing using CUDA-based PyTorch inference and advanced object tracking
+    algorithms (such as ByteTrack or a simple Intersection-over-Union tracker).
+    It avoids costly GPU-CPU-GPU memory transfer roundtrips by mapping the GStreamer
+    CUDA memory handle directly to PyTorch tensors via the `__cuda_array_interface__`
+    specification.
+
+    Attributes
+    ----------
+    model : torch.nn.Module or None
+        The pre-loaded YOLOX PyTorch model instance used for inference.
+    tracker : object or None
+        The initialized tracker object (either a `supervision.ByteTrack` or
+        a `SimpleTracker` instance).
+    device : torch.device or None
+        The PyTorch hardware device context (CUDA or CPU) on which tensor calculations
+        and model inference are performed.
+    use_gpu : bool
+        Indicates whether PyTorch inference is set up to run on the GPU.
+    model_type : str
+        The specific YOLOX variant to load (e.g. 'yolox_nano', 'yolox_tiny',
+        'yolox_s', 'yolox_m', 'yolox_l', 'yolox_x').
+    backend : str
+        The preferred inference backend, either "cuda" or "cpu".
+    tracker_type : str
+        The object tracking algorithm choice, either "bytetrack" or "iou".
+    verbose : bool
+        If True, enables logging of inference speed, tracking IDs, coordinates,
+        and other debug properties on stdout.
+    box_threshold : float
+        The minimum confidence score required to keep a detected bounding box.
+    class_threshold : float
+        The minimum class probability score required for classification.
+    iou_threshold : float
+        The Intersection over Union threshold used in PyTorch's Non-Maximum
+        Suppression (NMS) stage.
     """
 
     __gtype_name__ = "GstYoloxByteTrack"
@@ -153,6 +366,7 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
     tracker: Optional[Any] = None
     device: Optional[Any] = None
     use_gpu: bool = False
+    cuda_fallback_triggered: bool = False
 
     # Static properties set dynamically
     model_type: str = "yolox_s"
@@ -190,6 +404,12 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
     )
 
     def __init__(self) -> None:
+        """
+        Initialize the GstYoloxByteTrack element.
+
+        Loads standard COCO label names, sets up initial fallback flags,
+        and prepares the GStreamer base transform structure.
+        """
         super().__init__()
         self.labels: List[str] = []
         self.cuda_fallback_triggered: bool = False
@@ -206,7 +426,74 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
         else:
             self.labels = [f"class_{i}" for i in range(80)]
 
+    @classmethod
+    def load_model(cls) -> None:
+        """
+        Load or dynamically reload the YOLOX model onto the target hardware device.
+
+        This method initializes or re-initializes the PyTorch model and target device
+        (CPU or GPU). It is also used as a robust fallback mechanism if GPU execution
+        or memory mapping fails at runtime, enabling the pipeline to gracefully pivot
+        to CPU-based execution without crashing.
+        """
+        if (
+            cls.backend == "cuda"
+            and torch.cuda.is_available()
+            and not getattr(cls, "cuda_fallback_triggered", False)
+        ):
+            cls.device = torch.device("cuda")
+            cls.use_gpu = True
+            print("[GstYolox] Successfully initialized PyTorch on CUDA GPU.")
+        else:
+            cls.device = torch.device("cpu")
+            cls.use_gpu = False
+            print("[GstYolox] PyTorch executing on CPU.")
+
+        print(
+            f"[GstYolox] Loading pre-trained YOLOX model '{cls.model_type}' on {cls.device}..."
+        )
+        try:
+            cls.model = (
+                torch.hub.load(
+                    "Megvii-BaseDetection/YOLOX",
+                    cls.model_type,
+                    pretrained=True,
+                    trust_repo=True,
+                )
+                .to(cls.device)
+                .eval()
+            )
+            print("[GstYolox] Model loaded successfully.")
+        except Exception as e:
+            print(f"[GstYolox] Error loading model from Hub: {e}")
+            sys.exit(1)
+
     def do_transform_ip(self, buf: Gst.Buffer) -> Gst.FlowReturn:
+        """
+        Perform in-place processing and object tracking on the input GStreamer Buffer.
+
+        This method is invoked by GStreamer for each frame. It handles:
+        1. Lazy loading of the chosen tracker (negotiating FPS via CAPS if necessary).
+        2. Extracting input frame parameters (width, height, format).
+        3. Mapping the underlying buffer data into a PyTorch tensor (attempting
+           zero-copy CUDA mapping first, with a CPU fallback if mapping or execution
+           errors occur).
+        4. Running pre-loaded YOLOX inference.
+        5. Running post-processing (Anchor Grid Decoding and NMS).
+        6. Running tracking update (ByteTrack or simple IoU tracker).
+        7. Writing tracked results back into the frame buffer as GstAnalytics metadata,
+           making them available to downstream elements such as `objectdetectionoverlay`.
+
+        Parameters
+        ----------
+        buf : Gst.Buffer
+            The active GStreamer buffer representing the current video frame.
+
+        Returns
+        -------
+        Gst.FlowReturn
+            An enum status indicating success (`Gst.FlowReturn.OK`) or failure.
+        """
         # 1. Lazily load tracker
         if self.tracker is None:
             # Negotiate framerate for Supervision tracker
@@ -269,6 +556,7 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
                         f"[GstYolox] CUDA zero-copy mapping failed: {e}. Switching to CPU fallback."
                     )
                     self.cuda_fallback_triggered = True
+                    GstYoloxByteTrack.cuda_fallback_triggered = True
                 finally:
                     libgst.gst_memory_unmap(hash(mem), ctypes.byref(map_info))
 
@@ -309,6 +597,7 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
                     "[GstYolox] Disabling GPU path permanently for this session and falling back to CPU."
                 )
                 self.cuda_fallback_triggered = True
+                GstYoloxByteTrack.cuda_fallback_triggered = True
                 self.load_model()
                 # Run again on CPU
                 batch_input = batch_input.to(self.device)
@@ -426,7 +715,47 @@ def run_pipeline(
     iou_threshold: float = 0.7,
     model_type: str = "small",
 ) -> None:
-    """Configures and runs the PyTorch YOLOX GStreamer pipeline."""
+    """
+    Configure, build, and execute the GStreamer YOLOX Object Detection and Tracking pipeline.
+
+    This function sets class-level parameters on the `GstYoloxByteTrack` element,
+    initializes the PyTorch model and execution hardware, registers the custom
+    element with GStreamer's runtime registry, selects the appropriate decoding
+    and scaling components depending on whether CUDA acceleration is available,
+    constructs the GStreamer pipeline using launch syntax, and handles OS signal
+    trapping to shut down the pipeline gracefully.
+
+    Parameters
+    ----------
+    video_file_path : str
+        The local path to the input H.264 video file.
+    backend : str, optional
+        The computer vision inference backend to utilize ("cpu" or "cuda").
+        Default is "cuda".
+    tracker : str, optional
+        The tracker algorithm choice ("iou" or "bytetrack").
+        Default is "iou".
+    verbose : bool, optional
+        If True, verbose output details such as active tracking coordinates and
+        confidences will be printed to stdout. Default is False.
+    box_threshold : float, optional
+        The confidence score limit to filter candidate bounding box detections.
+        Default is 0.4.
+    class_threshold : float, optional
+        The minimum probability score required for classification.
+        Default is 0.4.
+    iou_threshold : float, optional
+        The overlap limit for candidate boxes during Non-Maximum Suppression.
+        Default is 0.7.
+    model_type : str, optional
+        The architectural variant of the pre-trained YOLOX model to load from PyTorch Hub
+        ("nano", "tiny", "small", "medium", "large", "extra-large"). Default is "small".
+
+    Raises
+    ------
+    RuntimeError
+        If the specified input video file does not exist.
+    """
     if not os.path.exists(video_file_path):
         raise RuntimeError(f"Error: Input file '{video_file_path}' does not exist.")
 
@@ -454,38 +783,8 @@ def run_pipeline(
     # _el = Gst.ElementFactory.make("cudaupload", "test_loader")
 
     # Load PyTorch, the model, and initialize the device ON THE MAIN THREAD!
-    if backend == "cuda" and torch.cuda.is_available():
-        device = torch.device("cuda")
-        use_gpu = True
-        print("[Pipeline] Successfully initialized PyTorch on CUDA GPU.")
-    else:
-        device = torch.device("cpu")
-        use_gpu = False
-        print("[Pipeline] PyTorch executing on CPU.")
-
-    print(
-        f"[Pipeline] Loading pre-trained YOLOX model '{model_type_str}' on {device}..."
-    )
-    try:
-        model = (
-            torch.hub.load(
-                "Megvii-BaseDetection/YOLOX",
-                model_type_str,
-                pretrained=True,
-                trust_repo=True,
-            )
-            .to(device)
-            .eval()
-        )
-        print("[Pipeline] Model loaded successfully.")
-    except Exception as e:
-        print(f"[Pipeline] Error loading model from Hub: {e}")
-        sys.exit(1)
-
-    # Assign pre-loaded variables as class attributes
-    GstYoloxByteTrack.model = model
-    GstYoloxByteTrack.device = device
-    GstYoloxByteTrack.use_gpu = use_gpu
+    GstYoloxByteTrack.load_model()
+    use_gpu = GstYoloxByteTrack.use_gpu
 
     # Register element
     Gst.Element.register(
@@ -540,6 +839,19 @@ def run_pipeline(
     bus.add_signal_watch()
 
     def on_message(bus: Gst.Bus, message: Gst.Message) -> None:
+        """
+        Handle incoming messages on the GStreamer bus.
+
+        This callback captures pipeline-wide notifications, such as the End-of-Stream (EOS)
+        signal when video playback completes or Error signals when elements fail.
+
+        Parameters
+        ----------
+        bus : Gst.Bus
+            The GStreamer message bus broadcasting events.
+        message : Gst.Message
+            The received message container containing type, source, and payload data.
+        """
         if message.type == Gst.MessageType.EOS:
             print("End-Of-Stream reached.")
             loop.quit()
