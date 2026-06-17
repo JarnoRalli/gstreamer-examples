@@ -143,7 +143,11 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
         self.cuda_fallback_triggered: bool = False
 
         # Load standard labels
-        label_file = "/workspace/gst-examples/COCO_classes.txt"
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        label_file = os.path.join(script_dir, "COCO_classes.txt")
+        if not os.path.exists(label_file):
+            label_file = "/workspace/COCO_classes.txt"
+
         if os.path.exists(label_file):
             with open(label_file, "r") as f:
                 self.labels = [line.strip() for line in f if line.strip()]
@@ -302,7 +306,7 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
             det_tensor = detections[0].cpu().numpy()
             xyxy_list = det_tensor[:, :4].tolist()
             conf_list = det_tensor[:, 4].tolist()
-            class_ids = det_tensor[:, 5].astype(int).tolist()
+            class_ids = det_tensor[:, 6].astype(int).tolist()
 
         tracks: List[Tuple[int, List[float]]] = []
 
