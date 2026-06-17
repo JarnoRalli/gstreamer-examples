@@ -11,7 +11,6 @@ import ctypes
 from typing import List, Tuple, Dict, Any, Optional
 
 import torch
-import cupy as cp
 import numpy as np
 import supervision as sv
 
@@ -21,7 +20,7 @@ gi.require_version("Gst", "1.0")
 gi.require_version("GstBase", "1.0")
 gi.require_version("GstVideo", "1.0")
 gi.require_version("GstAnalytics", "1.0")
-from gi.repository import Gst, GstBase, GstVideo, GstAnalytics, GLib  # noqa: E402
+from gi.repository import Gst, GstBase, GstAnalytics, GLib  # noqa: E402
 
 # Initialize GStreamer
 Gst.init(None)
@@ -51,6 +50,59 @@ def compute_iou(boxA: List[float], boxB: List[float]) -> float:
     if unionArea == 0.0:
         return 0.0
     return interArea / unionArea
+
+
+class GstCUDAArrayWrapper:
+    """
+    Exposes GStreamer CUdeviceptr directly to PyTorch
+    via the __cuda_array_interface__ protocol (Zero-Copy).
+    """
+
+    def __init__(self, ptr_val, shape, strides, dtype_str="|u1"):
+        self.__cuda_array_interface__ = {
+            "version": 3,
+            "data": (ptr_val, False),  # (pointer address, read_only)
+            "shape": shape,
+            "typestr": dtype_str,  # "|u1" represents uint8 (unsigned 1-byte)
+            "strides": strides,
+        }
+
+
+class GstMapInfo(ctypes.Structure):
+    _fields_ = [
+        ("memory", ctypes.c_void_p),
+        ("flags", ctypes.c_int),
+        ("padding", ctypes.c_int),  # Padding to align 64-bit pointers
+        ("data", ctypes.c_void_p),
+        ("size", ctypes.c_size_t),
+        ("maxsize", ctypes.c_size_t),
+        ("user_data", ctypes.c_void_p * 4),
+        ("_gst_reserved", ctypes.c_void_p * 4),  # GStreamer ABI padding
+    ]
+
+
+try:
+    libgst = ctypes.CDLL("libgstreamer-1.0.so.0")
+    libgst.gst_memory_map.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(GstMapInfo),
+        ctypes.c_int,
+    ]
+    libgst.gst_memory_map.restype = ctypes.c_bool
+    libgst.gst_memory_unmap.argtypes = [ctypes.c_void_p, ctypes.POINTER(GstMapInfo)]
+    libgst.gst_memory_unmap.restype = None
+    HAS_CTYPES_MAP = True
+except Exception:
+    HAS_CTYPES_MAP = False
+
+
+try:
+    libgstcuda = ctypes.CDLL("libgstcuda-1.0.so.0")
+    libgstcuda.gst_cuda_memory_sync.argtypes = [ctypes.c_void_p]
+    libgstcuda.gst_cuda_memory_sync.restype = None
+    HAS_GST_CUDA_SYNC = True
+except Exception:
+    HAS_GST_CUDA_SYNC = False
 
 
 class SimpleTracker:
@@ -181,60 +233,36 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
         struct = caps.get_structure(0)
         width = struct.get_value("width")
         height = struct.get_value("height")
-        video_info = GstVideo.VideoInfo.new_from_caps(caps)
-        stride = video_info.stride[0]
 
         rgb_tensor = None
         mem = buf.peek_memory(0)
         is_cuda = HAS_GST_CUDA and GstCuda.is_cuda_memory(mem)
 
         # 3. Extract RGB tensor via CUDA Zero-Copy (if active and not falling back)
-        if is_cuda and self.use_gpu and not self.cuda_fallback_triggered:
-            success, map_info = mem.map(Gst.MapFlags.READ | GstCuda.MAP_CUDA)
+        if (
+            is_cuda
+            and self.use_gpu
+            and not self.cuda_fallback_triggered
+            and HAS_CTYPES_MAP
+        ):
+            if HAS_GST_CUDA_SYNC:
+                libgstcuda.gst_cuda_memory_sync(hash(mem))
+            map_info = GstMapInfo()
+            # 131073 = GST_MAP_READ (1) | GST_MAP_CUDA (131072)
+            success = libgst.gst_memory_map(hash(mem), ctypes.byref(map_info), 131073)
             if success:
                 try:
-
-                    class Py_buffer(ctypes.Structure):
-                        _fields_ = [
-                            ("buf", ctypes.c_void_p),
-                            ("obj", ctypes.c_void_p),
-                            ("len", ctypes.c_ssize_t),
-                            ("itemsize", ctypes.c_ssize_t),
-                            ("readonly", ctypes.c_int),
-                            ("ndim", ctypes.c_int),
-                            ("format", ctypes.c_char_p),
-                            ("shape", ctypes.c_void_p),
-                            ("strides", ctypes.c_void_p),
-                            ("suboffsets", ctypes.c_void_p),
-                            ("internal", ctypes.c_void_p),
-                        ]
-
-                    class PyMemoryViewObject(ctypes.Structure):
-                        _fields_ = [
-                            ("ob_refcnt", ctypes.c_ssize_t),
-                            ("ob_type", ctypes.c_void_p),
-                            ("flags", ctypes.c_int),
-                            ("exports", ctypes.c_int),
-                            ("view", Py_buffer),
-                        ]
-
-                    mv = map_info.data
-                    py_mv = PyMemoryViewObject.from_address(id(mv))
-                    ptr_val = py_mv.view.buf
-
+                    ptr_val = map_info.data
                     if ptr_val:
-                        size_bytes = height * stride
-                        unowned_mem = cp.cuda.UnownedMemory(
-                            ptr_val, size_bytes, owner=None
-                        )
-                        memptr = cp.cuda.MemoryPointer(unowned_mem, offset=0)
-                        cupy_array = cp.ndarray(
+                        # Calculate the real hardware-pitched stride
+                        actual_stride = buf.get_size() // height
+                        cuda_wrapper = GstCUDAArrayWrapper(
+                            ptr_val=ptr_val,
                             shape=(height, width, 4),
-                            dtype=cp.uint8,
-                            memptr=memptr,
-                            strides=(stride, 4, 1),
+                            strides=(actual_stride, 4, 1),
+                            dtype_str="|u1",
                         )
-                        torch_tensor = torch.as_tensor(cupy_array, device=self.device)
+                        torch_tensor = torch.as_tensor(cuda_wrapper, device=self.device)
                         rgb_tensor = torch_tensor[:, :, :3].permute(2, 0, 1).float()
                 except Exception as e:
                     print(
@@ -242,7 +270,7 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
                     )
                     self.cuda_fallback_triggered = True
                 finally:
-                    mem.unmap(map_info)
+                    libgst.gst_memory_unmap(hash(mem), ctypes.byref(map_info))
 
         # 4. Fallback: map to CPU system memory
         if rgb_tensor is None:
@@ -464,21 +492,41 @@ def run_pipeline(
         None, "gstyoloxbytetrack", Gst.Rank.NONE, GstYoloxByteTrack.__gtype__
     )
 
-    # We use CPU decoding in GStreamer (avdec_h264) to completely avoid any CUDA context
-    # conflicts/deadlocks between GStreamer and PyTorch on the same thread,
-    # while running the heavy YOLOX model with maximum GPU acceleration on your CUDA device.
-    print(
-        f"[Pipeline] Initializing pipeline with GStreamer decoding on CPU and PyTorch YOLOX inference on {backend.upper()}..."
-    )
+    # Dynamic pipeline decoding and scaling selection based on backend choice
+    if backend == "cuda" and use_gpu:
+        print(
+            f"[Pipeline] Initializing GPU pipeline (nvh264dec + cudaconvertscale) with PyTorch YOLOX inference on {backend.upper()}..."
+        )
+        decode_and_scale = """
+            nvh264dec !
+            cudaconvertscale ! video/x-raw(memory:CUDAMemory),width=800,height=640,format=RGBA !
+        """
+        download_and_overlay = """
+            cudadownload ! video/x-raw,format=RGBA !
+            objectdetectionoverlay !
+            videoconvertscale ! autovideosink sync=false
+        """
+    else:
+        print(
+            f"[Pipeline] Initializing CPU pipeline (avdec_h264 + videoconvertscale) with PyTorch YOLOX inference on {backend.upper()}..."
+        )
+        decode_and_scale = """
+            avdec_h264 !
+            videoconvertscale ! video/x-raw,width=800,height=640,format=RGBA !
+        """
+        download_and_overlay = """
+            objectdetectionoverlay !
+            videoconvertscale ! autovideosink sync=false
+        """
+
     pipeline_definition = f"""
         filesrc location={video_file_path} !
-        qtdemux ! h264parse ! avdec_h264 !
-        videoconvertscale ! video/x-raw,width=800,height=640,format=RGBA !
+        qtdemux ! h264parse !
+        {decode_and_scale}
         queue max-size-buffers=2 !
         gstyoloxbytetrack !
         queue max-size-buffers=2 !
-        objectdetectionoverlay !
-        videoconvertscale ! autovideosink sync=false
+        {download_and_overlay}
     """
 
     print("=== Pipeline Definition ===")
