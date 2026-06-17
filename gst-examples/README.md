@@ -36,6 +36,8 @@ gst-inspect-1.0
   from gpu- to cpu-memory, and then applying post-processing. Otherwise the tensors are fetched element-wise, making
   the memory transfers highly inefficient.
 
+You can use the Docker container defined in [Dockerfile-deepstream-8.0](../docker/Dockerfile-deepstream-8.0) to run the examples.
+
 ## 2.3 RTSP Server
 
 This example launches an RTSP server and streams a video over RTSP, encoded in H264. Easiest way to run the program is to execute it
@@ -87,7 +89,7 @@ mux.sink_1 nvstreammux name=mux width=1920 height=1080 batch-size=1 live-source=
 queue ! nvvideoconvert ! queue ! nvdsosd ! queue ! nvegltransform ! nveglglessink
 ```
 
-## 2.4 YOLO Inference
+## 2.4 YOLOX Inference
 
 This example uses the `burn-yoloxinference` for object detection. It requires GStreamer version >= 1.28. If you don't have
 a required version of GStreamer installed, the easiest way is to use the following Docker containers
@@ -207,3 +209,12 @@ In order to see all the command line arguments, run
 python3 ./gst-bytetrack.py --help
 ```
 
+### 2.4.4 Python YOLOX with Tracker
+
+The Python function [gst-yolox-bytetrack.py](gst-yolox-bytetrack.py) implements both YOLOX detector and ByteTrack in a single
+GStreamer element. PyTorch is used for inference. H264 decoding is done in the CPU, PyTorch the transfers the data to the GPU (if available) for inference.
+First launch the corresponding Docker (see above) and then run the code with:
+
+```bash
+python3 gst-yolox-bytetrack.py -i /workspace/your_video.mp4 -t bytetrack -m medium -b cuda
+```

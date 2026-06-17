@@ -1,8 +1,14 @@
 """
-This example shows how to capture frames form a Gst-pipeline and process them with PyTorch.
+GStreamer and PyTorch Integration Example 1.
 
+This example shows how to capture frames from a GStreamer pipeline and process
+them with PyTorch for object detection using NVIDIA SSD.
+
+Examples
+--------
 For help regarding the command line arguments, run:
-python gst-pytorch-example-1.py --help
+
+    python gst-pytorch-example-1.py --help
 """
 
 import gi
@@ -13,6 +19,7 @@ import argparse
 import contextlib
 import time
 from functools import partial
+from typing import Generator, Callable, Optional
 
 gi.require_version("Gst", "1.0")
 from gi.repository import Gst  # noqa: E402
@@ -25,7 +32,20 @@ start_time, frames_processed = None, 0
 
 
 @contextlib.contextmanager
-def nvtx_range(msg):
+def nvtx_range(msg: str) -> Generator[int, None, None]:
+    """
+    Context manager for NVTX profiling ranges.
+
+    Parameters
+    ----------
+    msg : str
+        The message to push to the NVTX range.
+
+    Yields
+    ------
+    int
+        The depth of the pushed range.
+    """
     depth = torch.cuda.nvtx.range_push(msg)
     try:
         yield depth
@@ -34,19 +54,37 @@ def nvtx_range(msg):
 
 
 def on_frame_probe(
-    pad_in, info_in, detector_in, transform_in, device_in, detection_threshold_in
-):
+    pad_in: Gst.Pad,
+    info_in: Gst.PadProbeInfo,
+    detector_in: torch.nn.Module,
+    transform_in: Callable[[np.ndarray], torch.Tensor],
+    device_in: torch.device,
+    detection_threshold_in: float,
+) -> Gst.PadProbeReturn:
     """
-    This function is called every time a new frame is available.
-    :param pad_in: pad of the probe
-    :param info_in: pad probe information
-    :param detector_in: detector
-    :param transform_in: image transformation (pre-processing)
-    :param device_in: cuda or cpu
-    :param detection_threshold_in: detection threshold
-    :return:
+    Callback function called every time a new frame is available.
+
+    Parameters
+    ----------
+    pad_in : Gst.Pad
+        Pad of the probe.
+    info_in : Gst.PadProbeInfo
+        Pad probe information.
+    detector_in : torch.nn.Module
+        The PyTorch object detection model.
+    transform_in : Callable[[np.ndarray], torch.Tensor]
+        The image preprocessing transformations.
+    device_in : torch.device
+        Device to run the inference on (CPU or CUDA).
+    detection_threshold_in : float
+        The confidence threshold for keeping detections.
+
+    Returns
+    -------
+    Gst.PadProbeReturn
+        The status indicating what to do with the buffer.
     """
-    global start_time, frames_processed
+    global start_time, frames_processed  # noqa: F824
     start_time = start_time or time.time()
 
     with nvtx_range("on_frame_probe"):
@@ -78,12 +116,21 @@ def on_frame_probe(
         return Gst.PadProbeReturn.OK
 
 
-def buffer_to_numpy(buf, caps):
+def buffer_to_numpy(buf: Gst.Buffer, caps: Gst.Caps) -> Optional[np.ndarray]:
     """
-    Converts a Gst.Buffer to a numpy array
-    :param buf: buffer
-    :param caps: object capabilities
-    :return: RGB numpy array containing the image
+    Convert a Gst.Buffer to a numpy array.
+
+    Parameters
+    ----------
+    buf : Gst.Buffer
+        The GStreamer buffer containing image data.
+    caps : Gst.Caps
+        The capabilities of the pad defining the buffer's format.
+
+    Returns
+    -------
+    Optional[np.ndarray]
+        An RGB numpy array containing the image, or None if the buffer map fails.
     """
     with nvtx_range("buffer_to_image_tensor"):
         caps_struct = caps.get_structure(0)
@@ -105,7 +152,7 @@ def buffer_to_numpy(buf, caps):
 
 if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
-    argParser.add_argument("-i", "--input_file", help="input file path", default="")
+    argParser.add_argument("-i", "--input_file", help="input file path", required=True)
     argParser.add_argument(
         "-d",
         "--detection_threshold",
