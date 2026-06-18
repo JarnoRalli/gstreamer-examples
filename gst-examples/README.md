@@ -8,11 +8,11 @@ gst-inspect-1.0
 
 # 1 Requirements
 
-* Python 3.8
+* Python
 * Gst-python
 * gstreamer1.0-plugins-bad
 * gstreamer1.0-libav
-* The following are needed only for PyTorch related examples
+* The following are needed for the PyTorch related examples
   * torch
   * torchvision
 
@@ -195,9 +195,10 @@ gst-launch-1.0 filesrc location=/workspace/your_video.mp4 \
      ! autovideosink sync=false
 ```
 
-### 2.4.3 YOLOX with Tracker
+### 2.4.3 burn-yoloxinference with Tracker
 
-If you want to use tracker with the YOLOX, then use the [gst-bytetrack.py](gst-bytetrack.py) Python program. First launch the corresponding Docker (see above) and then run the code with:
+[gst-bytetrack.py](gst-bytetrack.py) implements a pipeline that uses `burn-yoloxinference` for running the detector and then implements IoU and ByteTrack
+trackers in a separate GStreamer element. First launch the corresponding Docker (see above) and then run the code with
 
 ```bash
 python3 ./gst-bytetrack.py -i /workspace/your_video.mp4 -b cuda -t bytetrack
@@ -209,12 +210,31 @@ In order to see all the command line arguments, run
 python3 ./gst-bytetrack.py --help
 ```
 
-### 2.4.4 Python YOLOX with Tracker
+### 2.4.4 PyTorch YOLOX with Tracker
 
-The Python function [gst-yolox-bytetrack.py](gst-yolox-bytetrack.py) implements both YOLOX detector and ByteTrack in a single
-GStreamer element. PyTorch is used for inference. H264 decoding is done in the CPU, PyTorch the transfers the data to the GPU (if available) for inference.
+It is also possible to write a GStreamer element in Python that uses PyTorch for YOLOX inference and implements a tracker in the same element.
+We have the following implementations:
+
+* [gst-yolox-bytetrack-cpudec.py](gst-yolox-bytetrack-cpudec.py)
+  * **Decoding:** uses `avdec_h264` for decoding frames in the CPU.
+  * **Inference:** uses PyTorch for inference (cpu or cuda).
+  * Frames are decoded into host memory and then copied device memory by PyTorch.
+  * Avoids stream synchronization conflicts, context deadlocks and memory race conditions.
+  * Slower throughput and higher CPU utilization due to CPU-decoding and Host-to-Device transfer overhead.
+* [gst-yolox-bytetrack-gpudec.py](gst-yolox-bytetrack-gpudec.py)
+  * **Decoding:** uses `nvh264dec` for decoding frames in the GPU when `cuda` backend is chosen.
+  * **Inference:** uses PyTorch for inference (cpu or cuda).
+  * This approach requires complex GStreamer-to-PyTorch context bridging. Because GStreamer operates on its own GstCudaContext and CUDA streams while PyTorch operates on its default context and stream, stream crossing occurs. Without pushing the GStreamer context and registering explicit bidirectional CUDA stream-wait barriers, the GPU will silently race, leading to screen flickering, corrupted tensors, or segfaults.
+  * Faster due to zero-copy, but more flaky.
+
 First launch the corresponding Docker (see above) and then run the code with:
 
 ```bash
-python3 gst-yolox-bytetrack.py -i /workspace/your_video.mp4 -t bytetrack -m medium -b cuda
+python3 gst-yolox-bytetrack-cpudec.py -i /workspace/your_video.mp4 -t bytetrack -m medium -b cuda
+```
+
+, or
+
+```bash
+python3 gst-yolox-bytetrack-gpudec.py -i /workspace/your_video.mp4 -t bytetrack -m medium -b cuda
 ```
