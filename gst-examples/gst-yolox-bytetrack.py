@@ -242,6 +242,23 @@ if libgstcuda is not None:
         # before PyTorch reads from it asynchronously on its stream (preventing flickering/segfaults).
         libgstcuda.gst_cuda_memory_sync.argtypes = [ctypes.c_void_p]
         libgstcuda.gst_cuda_memory_sync.restype = None
+
+        # Bind gst_cuda_memory_get_stream to extract the underlying GstCudaStream
+        libgstcuda.gst_cuda_memory_get_stream.argtypes = [ctypes.c_void_p]
+        libgstcuda.gst_cuda_memory_get_stream.restype = ctypes.c_void_p
+
+        # Bind gst_cuda_stream_get_handle to extract the raw CUstream handle (integer value)
+        libgstcuda.gst_cuda_stream_get_handle.argtypes = [ctypes.c_void_p]
+        libgstcuda.gst_cuda_stream_get_handle.restype = ctypes.c_void_p
+
+        # Bind gst_cuda_context_push to activate GStreamer's CUDA context on PyTorch's active thread
+        libgstcuda.gst_cuda_context_push.argtypes = [ctypes.c_void_p]
+        libgstcuda.gst_cuda_context_push.restype = ctypes.c_bool
+
+        # Bind gst_cuda_context_pop to restore the previous CUDA context stack state
+        libgstcuda.gst_cuda_context_pop.argtypes = [ctypes.POINTER(ctypes.c_void_p)]
+        libgstcuda.gst_cuda_context_pop.restype = ctypes.c_bool
+
         HAS_GST_CUDA_SYNC = True
     except Exception as e:
         print(f"[GstYolox] Failed to bind GstCuda sync functions: {e}")
@@ -524,6 +541,8 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
         rgb_tensor = None
         mem = buf.peek_memory(0)
         is_cuda = HAS_GST_CUDA and GstCuda.is_cuda_memory(mem)
+        gst_stream_obj = None
+        context_pushed = False
 
         # 3. Extract RGB tensor via CUDA Zero-Copy (if active and not falling back)
         if (
@@ -533,7 +552,30 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
             and HAS_CTYPES_MAP
         ):
             if HAS_GST_CUDA_SYNC:
-                libgstcuda.gst_cuda_memory_sync(hash(mem))
+                mem_ptr = hash(mem)
+                context_ptr = ctypes.cast(
+                    mem_ptr + 112, ctypes.POINTER(ctypes.c_void_p)
+                ).contents.value
+                if context_ptr:
+                    # Push GStreamer's CUDA context so PyTorch operates within the exact same context
+                    libgstcuda.gst_cuda_context_push(context_ptr)
+                    context_pushed = True
+
+                    stream_ptr = libgstcuda.gst_cuda_memory_get_stream(mem_ptr)
+                    if stream_ptr:
+                        stream_handle = libgstcuda.gst_cuda_stream_get_handle(
+                            stream_ptr
+                        )
+                        if stream_handle:
+                            # Wrap GStreamer's stream handle into PyTorch's ExternalStream
+                            gst_stream_obj = torch.cuda.ExternalStream(stream_handle)
+                            # Barrier 1: Tell PyTorch's stream queue to wait for GStreamer's writing stream
+                            torch.cuda.current_stream().wait_stream(gst_stream_obj)
+
+                # Fallback to standard memory synchronization if no non-default stream is registered
+                if not gst_stream_obj:
+                    libgstcuda.gst_cuda_memory_sync(mem_ptr)
+
             map_info = GstMapInfo()
             # 131073 = GST_MAP_READ (1) | GST_MAP_CUDA (131072)
             success = libgst.gst_memory_map(hash(mem), ctypes.byref(map_info), 131073)
@@ -589,6 +631,9 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
         try:
             with torch.no_grad():
                 predictions = self.model(batch_input)
+            if gst_stream_obj:
+                # Barrier 2: Force GStreamer's stream to wait for PyTorch's inference to finish reading before reusing the memory
+                gst_stream_obj.wait_stream(torch.cuda.current_stream())
         except Exception as e:
             # If a Blackwell GPU execution error happens, fallback immediately to CPU
             if "CUDA error" in str(e) or "kernel image" in str(e):
@@ -605,7 +650,16 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
                     predictions = self.model(batch_input)
             else:
                 print(f"[GstYolox] Inference error: {e}")
+                if context_pushed:
+                    popped_ctx = ctypes.c_void_p()
+                    libgstcuda.gst_cuda_context_pop(ctypes.byref(popped_ctx))
+                    context_pushed = False
                 return Gst.FlowReturn.OK
+        finally:
+            if context_pushed:
+                popped_ctx = ctypes.c_void_p()
+                libgstcuda.gst_cuda_context_pop(ctypes.byref(popped_ctx))
+                context_pushed = False
 
         # 6. Post-process (Anchor Grid Decode + NMS)
         from yolox.utils import postprocess
