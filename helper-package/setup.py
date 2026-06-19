@@ -21,8 +21,6 @@ setup(
     python_requires=">=3.6",
     packages=find_packages(where="src"),
     package_dir={"": "src"},
-    install_requires=[
-        "pyds>=1.1.1",
-    ],
+    install_requires=[],
     include_package_data=True,
 )

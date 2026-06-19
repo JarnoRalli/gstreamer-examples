@@ -1,0 +1,10 @@
+name: mcp-env
+channels:
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.12
+  - pip
+  - pip:
+      - mcp
+      - mcp[cli]

@@ -52,11 +52,13 @@ This directory contains docker files used for generating docker images where the
   * Docker container with GStreamer version 1.28 and [burn-yoloxinference](https://gstreamer.freedesktop.org/documentation/burn/?gi-language=c)
   * Based on ubuntu:24.04
   * Rust toolchain
+  * Model Context Protocol (MCP) ready
 * [Dockerfile-gstreamer-1.28-cuda](Dockerfile-gstreamer-1.28-cuda)
   * Docker container with GStreamer version 1.28 and [burn-yoloxinference](https://gstreamer.freedesktop.org/documentation/burn/?gi-language=c)
   * Based on cuda:12.6.0-devel-ubuntu24.04
   * Tested with 5070 and 595.71.05 driver version
   * Rust toolchain
+  * Model Context Protocol (MCP) ready
 
 # 1 Creating Docker Images
 
@@ -172,4 +174,150 @@ glmark2
 ```
 
 A window should pop-up, displaying a horse.
+
+---
+
+# 2. GStreamer MCP Documentation Server
+
+This directory contains a **Model Context Protocol (MCP) Server** and GStreamer **Introspection Agent**. It is designed to bridge the gap between your local AI assistant (like OpenCode) and the heavy GStreamer libraries, pre-compiled plugins, and CUDA bindings running inside the container.
+
+## 2.1 The Problem & Solution
+
+GStreamer requires deep system library packages, complex compilation steps, and heavy GPU-accelerated video codecs (like Nvidia CUDA). Installing GStreamer directly on your local developer machine (macOS, Windows, or clean Linux installations) is difficult, prone to version mismatches, and can pollute your host system.
+
+Our solution decouples the environment:
+1. **Host Machine (Conda: `mcp-env`):** Runs a lightweight Python **MCP Proxy** (`gstreamer_mcp.py`) with zero GStreamer dependencies.
+2. **Docker Container:** Houses the fully built GStreamer runtime (CPU or CUDA). It runs an **Introspection Agent** (`gstreamer_mcp_server.py`) over HTTP. When the proxy is queried, it requests accurate, version-specific details from the running container in milliseconds.
+
+```mermaid
+graph TD
+    classDef hostBox fill:#1e293b,stroke:#334155,stroke-width:2px,color:#f8fafc;
+    classDef containerBox fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef componentNode fill:#020617,stroke:#475569,stroke-width:1px,color:#cbd5e1;
+    classDef highlightNode fill:#022c22,stroke:#10b981,stroke-width:1px,color:#34d399;
+
+    subgraph Host ["Host Machine (Conda: mcp-env)"]
+        OpenCode[OpenCode / IDE Agent]:::componentNode
+        Proxy[gstreamer_mcp.py Proxy]:::highlightNode
+        OpenCode <-->|MCP Protocol| Proxy
+    end
+
+    subgraph Docker ["Docker Container (GStreamer Env)"]
+        Agent[gstreamer_mcp_server.py Server]:::highlightNode
+        Gst[GStreamer Core & Plugins]:::componentNode
+        GIR[GObject Introspection .gir]:::componentNode
+
+        Agent <-->|PyGObject / gi| Gst
+        Agent <-->|XML Parsing| GIR
+    end
+
+    Proxy <-->|HTTP REST / JSON Port 8000| Agent
+
+    class Host hostBox;
+    class Docker containerBox;
+```
+
+## 2.2 Features
+
+* **`list_gst_elements` (Fast Discovery):** Uses GStreamer's live memory registry (`Gst.Registry`) inside the container to search and filter elements by keyword or **semantic class/category** (e.g. `Decoder`, `Encoder`, `Source`, `Sink`, `Demuxer`).
+* **`get_gst_element_details` (Deep Inspection):** Generates a beautifully formatted Markdown schema of any element, showing typed property parameters, default values, readable/writable flags, and static pad template directions + caps alongside raw specifications.
+* **`validate_gst_pipeline` (Self-Healing Validation Loop):** Perfroms a timed dry-run of a GStreamer pipeline string inside the container. Captures caps negotiation issues, state-transition failures, or missing link warnings. Automatically parses and simplifies log diagnostics so the AI agent can diagnose and fix its own pipeline errors.
+* **`get_python_gst_docs` / `get_c_gst_docs` (API Docs):** Safely extracts version-accurate PyGObject Python signatures and direct C struct layouts directly from system introspection binaries.
+
+## 2.3 Getting Started
+
+### 1. Start the GStreamer Agent via Docker Compose
+
+In the `docker/` directory, spin up either the CPU-based or CUDA-based documentation container:
+
+```bash
+# For standard CPU containers:
+docker compose up --build gstreamer-docs-cpu
+
+# For NVIDIA GPU/CUDA accelerated containers:
+docker compose up --build gstreamer-docs-cuda
+```
+
+This starts the GStreamer agent FastAPI server inside the container, forwarding port `8000` to the host. You can open your host browser at `http://localhost:8000/` to inspect the live developer dashboard and interactive API playgrounds (`/docs` or `/redoc`).
+
+### 2. Configure Your MCP Client
+
+To ensure OpenCode or Claude Desktop runs the MCP server inside your dedicated Conda environment (`mcp-env`), use `conda run` in your configuration. This avoids path resolution issues on your host.
+
+#### Option A: OpenCode Configuration
+
+Add the following config snippet to your OpenCode configuration block (e.g., inside `.opencode/opencode.json`):
+
+```json
+  "mcp": {
+    "gstreamer": {
+      "type": "local",
+      "command": [
+        "conda",
+        "run",
+        "-n",
+        "mcp-env",
+        "--no-capture-output",
+        "python3",
+        "<PATH-TO-PROJECTS>/gstreamer-examples/docker/gstreamer_mcp.py"
+      ],
+      "environment": {
+        "GST_DOCS_AGENT_URL": "http://localhost:8000"
+      }
+    }
+  }
+```
+
+#### Option B: Claude Desktop Configuration
+
+Add the following config snippet to your Claude Desktop configuration file (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "gstreamer": {
+      "command": "conda",
+      "args": [
+        "run",
+        "-n",
+        "mcp-env",
+        "--no-capture-output",
+        "python3",
+        "<PATH-TO-PROJECTS>/gstreamer-examples/docker/gstreamer_mcp.py"
+      ],
+      "env": {
+        "GST_DOCS_AGENT_URL": "http://localhost:8000"
+      }
+    }
+  }
+}
+```
+
+Replace `<PATH-TO-PROJECTS>` with the absolute path where the `gstreamer-examples` repo was cloned on your host machine.
+
+#### Where to Find Configuration Files
+
+Depending on your operating system and preferred client, you can find the configuration files in the following standard directories:
+
+| Client / Tool | OS | Configuration Path |
+| :--- | :--- | :--- |
+| **OpenCode** | **Ubuntu / Linux** | `~/.config/opencode/opencode.json`<br>*(or workspace-level `.opencode/opencode.json`)* |
+| | **macOS** | `~/Library/Application Support/opencode/opencode.json`<br>*(or workspace-level `.opencode/opencode.json`)* |
+| | **Windows** | `%APPDATA%\opencode\opencode.json`<br>*(or workspace-level `.opencode\opencode.json`)* |
+| **Claude Desktop** | **macOS** | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+| | **Windows** | `%APPDATA%\Claude\claude_desktop_config.json`<br>*(Resolves to `C:\Users\<user>\AppData\Roaming\Claude\claude_desktop_config.json`)* |
+| | **Ubuntu / Linux** | `~/.config/Claude/claude_desktop_config.json`<br>*(Note: officially unofficial on Linux)* |
+
+### 3. Debugging with the MCP Developer Inspector
+
+The **MCP Developer Inspector** (`mcp dev ...`) is an interactive command-line utility provided by the MCP SDK. It starts a local, interactive web-based console to let you manually trigger and visually inspect the GStreamer documentation tools (like searching elements, validating pipelines, or checking properties) before loading them into your primary IDE:
+
+Activate your environment and point the inspector directly to your proxy:
+```bash
+conda activate mcp-env
+mcp dev gstreamer-examples/docker/gstreamer_mcp.py
+```
+This opens a local developer portal where you can click "Run Tool" on `list_gst_elements` or `validate_gst_pipeline` to test the entire host-to-container loop easily.
+
+
 

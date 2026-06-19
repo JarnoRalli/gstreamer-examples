@@ -105,6 +105,9 @@ ENV LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu
 ENV PYTHONPATH=/usr/local/lib/python3/dist-packages:/usr/local/lib/python3.12/site-packages
 ENV GI_TYPELIB_PATH=/usr/local/lib/x86_64-linux-gnu/girepository-1.0
 
+# Install FastAPI and Uvicorn for GStreamer MCP doc-agent
+RUN pip3 install --break-system-packages fastapi uvicorn
+
 # Verify the installation on startup
 WORKDIR /workspace
 CMD ["gst-inspect-1.0", "--version"]
