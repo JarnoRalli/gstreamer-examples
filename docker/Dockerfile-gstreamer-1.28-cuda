@@ -222,7 +222,7 @@ RUN pip3 install --break-system-packages cupy-cuda12x loguru psutil tabulate
 RUN pip3 install --break-system-packages torch torchvision --index-url https://download.pytorch.org/whl/cu128
 
 # Install FastAPI and Uvicorn for GStreamer MCP doc-agent
-RUN pip3 install --break-system-packages fastapi uvicorn
+RUN pip3 install --break-system-packages fastapi uvicorn pydantic-settings
 
 WORKDIR /workspace
 CMD ["gst-inspect-1.0", "burn-yoloxinference"]

@@ -5,8 +5,39 @@ import subprocess
 import shlex
 import xml.etree.ElementTree as ET
 from typing import Any
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.responses import HTMLResponse
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    """
+    Application configuration settings loaded from environment variables.
+
+    Attributes
+    ----------
+    gir_search_paths : list of str
+        The list of directory paths searched to locate GObject Introspection (.gir) files.
+        Default is ["/usr/local/share/gir-1.0", "/usr/share/gir-1.0"].
+    """
+
+    gir_search_paths: list[str] = ["/usr/local/share/gir-1.0", "/usr/share/gir-1.0"]
+
+    class Config:
+        env_prefix = "GSTMCP_"
+
+
+def get_settings() -> Settings:
+    """
+    Retrieve or instantiate the application configuration settings.
+
+    Returns
+    -------
+    Settings
+        The application configuration settings instance.
+    """
+    return Settings()
+
 
 app = FastAPI(title="GStreamer Documentation Agent", version="1.0")
 
@@ -38,7 +69,10 @@ def _parse_class_path(class_path: str) -> tuple[str, str]:
     return parts[0], parts[1]
 
 
-def _find_gir_path(namespace: str) -> str:
+def _find_gir_path(
+    namespace: str,
+    gir_search_paths: list[str] = ["/usr/local/share/gir-1.0", "/usr/share/gir-1.0"],
+) -> str:
     """
     Find the path to the .gir file for a given GObject namespace.
 
@@ -46,6 +80,9 @@ def _find_gir_path(namespace: str) -> str:
     ----------
     namespace : str
         The GObject namespace, e.g., 'Gst' or 'GstVideo'.
+    gir_search_paths: list[str]
+        Search paths to the directories where .gir files can be found.
+        Default ["/usr/local/share/gir-1.0", "/usr/share/gir-1.0"]
 
     Returns
     -------
@@ -57,13 +94,13 @@ def _find_gir_path(namespace: str) -> str:
     FileNotFoundError
         If the .gir file cannot be found in common directories.
     """
-    search_paths = ["/usr/local/share/gir-1.0", "/usr/share/gir-1.0"]
-    for base_dir in search_paths:
+
+    for base_dir in gir_search_paths:
         target = os.path.join(base_dir, f"{namespace}-1.0.gir")
         if os.path.exists(target):
             return target
     raise FileNotFoundError(
-        f"Could not find introspection file for {namespace} in {search_paths}"
+        f"Could not find introspection file for {namespace} in {gir_search_paths}"
     )
 
 
@@ -162,9 +199,14 @@ def _format_c_method(
 
 
 @app.get("/", response_class=HTMLResponse)
-def get_dashboard() -> HTMLResponse:
+def get_dashboard(settings: Settings = Depends(get_settings)) -> HTMLResponse:
     """
     Render a modern, beautiful landing dashboard with Tailwind CSS.
+
+    Parameters
+    ----------
+    settings : Settings
+        The application configuration settings instance.
 
     Returns
     -------
@@ -173,6 +215,20 @@ def get_dashboard() -> HTMLResponse:
     """
     # 1. Fetch system metadata dynamically
     gst_version = "Unknown (GStreamer bindings not found)"
+    element_count = 0
+    categories = {
+        "Sources": [],
+        "Sinks": [],
+        "Decoders": [],
+        "Encoders": [],
+        "Parsers": [],
+        "Demuxers": [],
+        "Muxers": [],
+        "Filters": [],
+        "Converters": [],
+        "Other / Generic": [],
+    }
+
     try:
         import gi
 
@@ -181,18 +237,252 @@ def get_dashboard() -> HTMLResponse:
 
         Gst.init(None)
         gst_version = Gst.version_string()
-    except Exception as e:
-        gst_version = f"Error: {e}"
 
-    element_count = 0
-    try:
         registry = Gst.Registry.get()
         factories = registry.get_feature_list(Gst.ElementFactory)
         element_count = len(factories)
-    except Exception:
-        pass
 
-    # Render a modern, beautiful landing dashboard with Tailwind CSS
+        for factory in factories:
+            name = factory.get_name()
+            klass = factory.get_klass() or "Generic"
+            desc = factory.get_description() or ""
+            plugin = factory.get_plugin_name() or "core"
+            klass_lower = klass.lower()
+
+            element_info = {
+                "name": name,
+                "plugin": plugin,
+                "klass": klass,
+                "desc": desc,
+            }
+
+            if "source" in klass_lower:
+                categories["Sources"].append(element_info)
+            elif "sink" in klass_lower:
+                categories["Sinks"].append(element_info)
+            elif "decoder" in klass_lower:
+                categories["Decoders"].append(element_info)
+            elif "encoder" in klass_lower:
+                categories["Encoders"].append(element_info)
+            elif "parser" in klass_lower:
+                categories["Parsers"].append(element_info)
+            elif "demuxer" in klass_lower:
+                categories["Demuxers"].append(element_info)
+            elif "muxer" in klass_lower:
+                categories["Muxers"].append(element_info)
+            elif "filter" in klass_lower:
+                categories["Filters"].append(element_info)
+            elif "converter" in klass_lower:
+                categories["Converters"].append(element_info)
+            else:
+                categories["Other / Generic"].append(element_info)
+
+        # Sort elements inside each category alphabetically
+        for cat in categories:
+            categories[cat].sort(key=lambda x: x["name"])
+
+    except Exception as e:
+        gst_version = f"Error: {e}"
+
+    # 2. Build live environment variables list
+    env_vars = [
+        {
+            "name": "GSTMCP_GIR_SEARCH_PATHS",
+            "value": ", ".join(settings.gir_search_paths),
+            "source": "Application Settings",
+            "desc": "List of directories scanned to locate GObject Introspection (.gir) XML files inside the container.",
+        },
+        {
+            "name": "GST_DOCS_AGENT_URL",
+            "value": os.environ.get(
+                "GST_DOCS_AGENT_URL", "http://localhost:8000 (Default)"
+            ),
+            "source": "Host Proxy",
+            "desc": "URL utilized by the host's gstreamer_mcp.py proxy client to communicate with this containerized backend agent.",
+        },
+        {
+            "name": "GST_DEBUG",
+            "value": os.environ.get("GST_DEBUG", "Not set (Default levels apply)"),
+            "source": "GStreamer Core",
+            "desc": "Controls GStreamer's diagnostic and log output verbosity. Format: category:level, e.g. *:3.",
+        },
+        {
+            "name": "GST_PLUGIN_PATH",
+            "value": os.environ.get("GST_PLUGIN_PATH", "Not set"),
+            "source": "GStreamer Registry",
+            "desc": "Specifies custom colon-separated paths to search for additional GStreamer plugins.",
+        },
+        {
+            "name": "GST_PLUGIN_SYSTEM_PATH",
+            "value": os.environ.get("GST_PLUGIN_SYSTEM_PATH", "Not set"),
+            "source": "GStreamer Registry",
+            "desc": "Overrides or restricts the standard system directories where GStreamer looks for pre-installed plugins.",
+        },
+        {
+            "name": "DISPLAY",
+            "value": os.environ.get("DISPLAY", "Not set"),
+            "source": "Docker/X11 Forwarding",
+            "desc": "Standard X11 display identifier for video sink visualization forwarding to your host display.",
+        },
+        {
+            "name": "XAUTHORITY",
+            "value": os.environ.get("XAUTHORITY", "Not set"),
+            "source": "Docker/X11 Forwarding",
+            "desc": "File path containing authority keys/cookies required to authenticate connection to the X11 display server.",
+        },
+        {
+            "name": "NVIDIA_DRIVER_CAPABILITIES",
+            "value": os.environ.get("NVIDIA_DRIVER_CAPABILITIES", "Not set"),
+            "source": "Nvidia Container Runtime",
+            "desc": "Enables specific Nvidia GPU capabilities inside the container (e.g. 'all', 'compute,utility,video').",
+        },
+    ]
+
+    env_rows = []
+    for var in env_vars:
+        val_display = var["value"]
+        if len(val_display) > 60:
+            val_display = val_display[:57] + "..."
+        env_rows.append(
+            f"""
+        <tr class="hover:bg-slate-900/30 transition-colors">
+            <td class="px-6 py-4 font-mono font-bold text-white text-xs">{var['name']}</td>
+            <td class="px-6 py-4 font-mono text-emerald-400 text-xs break-all" title="{var['value']}">{val_display}</td>
+            <td class="px-6 py-4">
+                <span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 text-[10px] font-medium font-mono">{var['source']}</span>
+            </td>
+            <td class="px-6 py-4 text-slate-400 text-xs leading-normal">{var['desc']}</td>
+        </tr>
+        """
+        )
+    env_rows_rendered = "\n".join(env_rows)
+
+    # 3. Build GIR status list
+    common_namespaces = [
+        "Gst",
+        "GstBase",
+        "GstVideo",
+        "GstAudio",
+        "GstPbutils",
+        "GstRtsp",
+        "GstApp",
+    ]
+    gir_status_list = []
+
+    for ns in common_namespaces:
+        found_path = None
+        for base_dir in settings.gir_search_paths:
+            target = os.path.join(base_dir, f"{ns}-1.0.gir")
+            if os.path.exists(target):
+                found_path = target
+                break
+
+        gir_status_list.append(
+            {
+                "namespace": ns,
+                "filename": f"{ns}-1.0.gir",
+                "found": found_path is not None,
+                "path": found_path if found_path else "Not found",
+            }
+        )
+
+    gir_cards = []
+    for item in gir_status_list:
+        if item["found"]:
+            status_badge = """
+            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-semibold">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                Active &amp; Parsed
+            </span>
+            """
+            path_display = f"""
+            <div class="mt-3 font-mono text-[10px] text-slate-400 truncate bg-slate-950 p-2 rounded border border-slate-800/60" title="{item['path']}">
+                {item['path']}
+            </div>
+            """
+        else:
+            status_badge = """
+            <span class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold">
+                <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span>
+                Missing
+            </span>
+            """
+            path_display = """
+            <div class="mt-3 font-mono text-[10px] text-red-400/80 bg-red-950/10 p-2 rounded border border-red-900/20">
+                Unavailable in search paths
+            </div>
+            """
+
+        gir_cards.append(
+            f"""
+        <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between">
+            <div class="flex items-center justify-between gap-4">
+                <div>
+                    <h4 class="text-sm font-bold text-white font-mono">{item['namespace']}-1.0</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5">{item['filename']}</p>
+                </div>
+                {status_badge}
+            </div>
+            {path_display}
+        </div>
+        """
+        )
+
+    gir_cards_rendered = "\n".join(gir_cards)
+    settings_gir_paths = ", ".join(settings.gir_search_paths)
+
+    # 4. Build collapsible categories directory HTML
+    categories_html = []
+    for cat_name, elements_list in categories.items():
+        if not elements_list:
+            continue
+
+        elements_rows_html = []
+        for el in elements_list:
+            elements_rows_html.append(
+                f"""
+            <div class="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-2">
+                        <span class="font-mono font-bold text-emerald-400">{el['name']}</span>
+                        <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-mono">{el['plugin']}</span>
+                    </div>
+                    <p class="text-slate-400 leading-normal">{el['desc']}</p>
+                </div>
+                <div class="text-right shrink-0">
+                    <span class="text-[10px] text-slate-500 font-mono block">{el['klass']}</span>
+                </div>
+            </div>
+            """
+            )
+
+        elements_html_block = "\n".join(elements_rows_html)
+
+        categories_html.append(
+            f"""
+        <details class="group bg-slate-900/40 border border-slate-800/80 rounded-2xl overflow-hidden [&_summary::-webkit-details-marker]:hidden">
+            <summary class="flex items-center justify-between p-5 cursor-pointer select-none hover:bg-slate-900/80 transition duration-150">
+                <div class="flex items-center gap-3">
+                    <span class="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 text-xs font-semibold font-mono">
+                        {len(elements_list)}
+                    </span>
+                    <span class="font-bold text-white tracking-wide text-sm">{cat_name}</span>
+                </div>
+                <svg class="h-5 w-5 text-slate-400 transition duration-300 group-open:-rotate-180"
+                     xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </summary>
+            <div class="px-5 pb-5 border-t border-slate-800/60 divide-y divide-slate-800/40 max-h-96 overflow-y-auto">
+                {elements_html_block}
+            </div>
+        </details>
+        """
+        )
+
+    categories_rendered = "\n".join(categories_html)
+
+    # Render landing dashboard
     html_content = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -247,7 +537,7 @@ def get_dashboard() -> HTMLResponse:
             </div>
         </header>
 
-        <main class="max-w-6xl mx-auto px-6 py-10 space-y-10">
+        <main class="max-w-6xl mx-auto px-6 py-10 space-y-12">
             <!-- Grid of Status Details -->
             <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <!-- Card: GStreamer Version -->
@@ -332,20 +622,116 @@ def get_dashboard() -> HTMLResponse:
                 </div>
             </section>
 
-            <!-- Section: Client Setup Instruction -->
-            <section class="bg-slate-900/30 border border-slate-800/80 rounded-3xl p-8 space-y-6">
+            <!-- Section: Collapsible Elements Directory -->
+            <section class="space-y-6">
                 <div>
-                    <h2 class="text-2xl font-bold text-white tracking-tight">OpenCode / Claude Desktop Integration</h2>
+                    <h2 class="text-2xl font-bold text-white tracking-tight">Registered GStreamer Elements</h2>
                     <p class="text-sm text-slate-400 mt-1">
-                        Configure your Model Context Protocol clients on the host using the
-                        configuration block below. It uses <code>conda run</code> to guarantee
-                        it executes inside the correct environment.
+                        Browse through all elements currently loaded in GStreamer's registry inside this container,
+                        grouped by semantic category. Click on any category block to expand and view the list.
+                    </p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {categories_rendered}
+                </div>
+            </section>
+
+            <!-- Section: GIR Registry Status -->
+            <section class="space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-white tracking-tight">GObject Introspection (.gir) Registry</h2>
+                    <p class="text-sm text-slate-400 mt-1">
+                        GStreamer GObject API C metadata is read directly from system <code>.gir</code> XML files inside the container.
+                        Below is the discovery status of these files within the configured search paths:
+                        <code class="font-bold text-xs text-emerald-400">{settings_gir_paths}</code>.
+                    </p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {gir_cards_rendered}
+                </div>
+            </section>
+
+            <!-- Section: Environment Variables -->
+            <section class="space-y-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-white tracking-tight">Live Environment Configuration</h2>
+                    <p class="text-sm text-slate-400 mt-1">
+                        Current environment variables active inside this GStreamer agent container and on the proxy client.
+                    </p>
+                </div>
+                <div class="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/20">
+                    <table class="w-full text-left text-sm border-collapse">
+                        <thead class="bg-slate-900/80 text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                            <tr>
+                                <th class="px-6 py-4">Environment Variable</th>
+                                <th class="px-6 py-4">Current Value</th>
+                                <th class="px-6 py-4">Scope / Source</th>
+                                <th class="px-6 py-4">Description</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60">
+                            {env_rows_rendered}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+             <!-- Section: Client Setup Instruction -->
+            <section class="bg-slate-900/30 border border-slate-800/80 rounded-3xl p-8 space-y-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-white tracking-tight">OpenCode &amp; Claude Desktop Integration</h2>
+                    <p class="text-sm text-slate-400 mt-1">
+                        Configure your host Model Context Protocol clients using the configuration snippets below.
+                        They utilize <code>conda run</code> to run inside your virtual environment (<code>mcp-env</code>)
+                        without environment path resolution mismatches on your host.
                     </p>
                 </div>
 
-                <div class="space-y-3">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Example Configuration (e.g., config.json)</span>
-                    <pre class="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-sm overflow-x-auto text-emerald-400/90 leading-relaxed shadow-inner">
+                <!-- Grid: OpenCode and Claude side-by-side -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <!-- Option A: OpenCode -->
+                    <div class="space-y-4 flex flex-col justify-between">
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 text-xs font-semibold uppercase tracking-wider">Option A</span>
+                                <h3 class="text-lg font-bold text-white">OpenCode Configuration</h3>
+                            </div>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Add the following block to your OpenCode configuration. You can configure this globally or at the workspace level.
+                            </p>
+                        </div>
+                        <pre class="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs overflow-x-auto text-emerald-400/90 leading-relaxed shadow-inner">
+"mcp": {{
+  "gstreamer": {{
+    "type": "local",
+    "command": [
+      "conda",
+      "run",
+      "-n",
+      "mcp-env",
+      "--no-capture-output",
+      "python3",
+      "/home/jarno/projects/jarno/gstreamer-examples/docker/gstreamer_mcp.py"
+    ],
+    "environment": {{
+      "GST_DOCS_AGENT_URL": "http://localhost:8000"
+    }}
+  }}
+}}</pre>
+                    </div>
+
+                    <!-- Option B: Claude Desktop -->
+                    <div class="space-y-4 flex flex-col justify-between">
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-1 rounded bg-teal-500/10 text-teal-400 text-xs font-semibold uppercase tracking-wider">Option B</span>
+                                <h3 class="text-lg font-bold text-white">Claude Desktop Configuration</h3>
+                            </div>
+                            <p class="text-xs text-slate-400 leading-relaxed">
+                                Add the following block to your Claude Desktop configuration file. Note that paths and settings are preserved automatically.
+                            </p>
+                        </div>
+                        <pre class="bg-slate-950 p-5 rounded-2xl border border-slate-800 text-xs overflow-x-auto text-teal-400/90 leading-relaxed shadow-inner">
 {{
   "mcpServers": {{
     "gstreamer": {{
@@ -364,8 +750,73 @@ def get_dashboard() -> HTMLResponse:
     }}
   }}
 }}</pre>
+                    </div>
                 </div>
 
+                <!-- Table: Configuration Paths -->
+                <div class="space-y-3 pt-4 border-t border-slate-800/60">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Where to Find Your Client Configuration Files</span>
+                    <div class="overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/40">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead class="bg-slate-900/60 text-[10px] font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800/80">
+                                <tr>
+                                    <th class="px-5 py-3">Client Tool</th>
+                                    <th class="px-5 py-3">OS / Platform</th>
+                                    <th class="px-5 py-3">Configuration File Path</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800/40 text-slate-300">
+                                <tr class="hover:bg-slate-900/20 transition-colors">
+                                    <td class="px-5 py-3 font-semibold text-white">OpenCode</td>
+                                    <td class="px-5 py-3">Ubuntu / Linux</td>
+                                    <td class="px-5 py-3 font-mono text-emerald-400">
+                                        ~/.config/opencode/opencode.json
+                                        <span class="text-slate-500 font-sans">(or workspace-level .opencode/opencode.json)</span>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-slate-900/20 transition-colors">
+                                    <td class="px-5 py-3 font-semibold text-white">OpenCode</td>
+                                    <td class="px-5 py-3">macOS</td>
+                                    <td class="px-5 py-3 font-mono text-emerald-400">
+                                        ~/Library/Application Support/opencode/opencode.json
+                                        <span class="text-slate-500 font-sans">(or workspace-level .opencode/opencode.json)</span>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-slate-900/20 transition-colors">
+                                    <td class="px-5 py-3 font-semibold text-white">OpenCode</td>
+                                    <td class="px-5 py-3">Windows</td>
+                                    <td class="px-5 py-3 font-mono text-emerald-400">
+                                        %APPDATA%\\opencode\\opencode.json
+                                        <span class="text-slate-500 font-sans">(or workspace-level .opencode\\opencode.json)</span>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-slate-900/20 transition-colors">
+                                    <td class="px-5 py-3 font-semibold text-white">Claude Desktop</td>
+                                    <td class="px-5 py-3">macOS</td>
+                                    <td class="px-5 py-3 font-mono text-teal-400">
+                                        ~/Library/Application Support/Claude/claude_desktop_config.json
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-slate-900/20 transition-colors">
+                                    <td class="px-5 py-3 font-semibold text-white">Claude Desktop</td>
+                                    <td class="px-5 py-3">Windows</td>
+                                    <td class="px-5 py-3 font-mono text-teal-400">
+                                        %APPDATA%\\Claude\\claude_desktop_config.json
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-slate-900/20 transition-colors">
+                                    <td class="px-5 py-3 font-semibold text-white">Claude Desktop</td>
+                                    <td class="px-5 py-3">Ubuntu / Linux</td>
+                                    <td class="px-5 py-3 font-mono text-teal-400">
+                                        ~/.config/Claude/claude_desktop_config.json
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Section: Debugging -->
                 <div class="border-t border-slate-800/60 pt-6 space-y-3">
                     <h3 class="text-base font-bold text-white">Debugging with the MCP Developer Inspector</h3>
                     <p class="text-xs text-slate-400 leading-relaxed">
@@ -469,7 +920,7 @@ curl "http://127.0.0.1:8000/elements/details?name=jpeg2000parse" | jq .</pre>
         </main>
 
         <footer class="border-t border-slate-800/60 mt-16 py-8 text-center text-xs text-slate-500">
-            &copy; 2026 GStreamer MCP Documentation Server Agent. Done cleanly & maintainably.
+            &copy; 2026 GStreamer MCP Documentation Server Agent. Done cleanly &amp; maintainably.
         </footer>
     </body>
     </html>
@@ -881,7 +1332,8 @@ def get_python_docs(
 
 @app.get("/docs/c")
 def get_c_docs(
-    class_path: str = Query(..., description="E.g., Gst.Element, Gst.Pad")
+    class_path: str = Query(..., description="E.g., Gst.Element, Gst.Pad"),
+    settings: Settings = Depends(get_settings),
 ) -> dict[str, Any]:
     """
     Retrieve C signatures and summary from GI Introspection XML for a GObject class.
@@ -890,6 +1342,8 @@ def get_c_docs(
     ----------
     class_path : str
         Dot-separated GObject class path, e.g., 'Gst.Element'.
+    settings : Settings
+        Application settings
 
     Returns
     -------
@@ -907,7 +1361,9 @@ def get_c_docs(
         raise HTTPException(status_code=400, detail=str(e))
 
     try:
-        gir_path = _find_gir_path(namespace)
+        gir_path = _find_gir_path(
+            namespace=namespace, gir_search_paths=settings.gir_search_paths
+        )
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
