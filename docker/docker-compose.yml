@@ -1,0 +1,46 @@
+services:
+  gstreamer-docs-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile-gstreamer-1.28
+    image: gstreamer-1.28-mcp
+    container_name: gstreamer-mcp-cpu
+    working_dir: /workspace
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ../:/workspace
+    environment:
+      - PYTHONPATH=/usr/local/lib/python3/dist-packages:/usr/local/lib/python3.12/site-packages
+      - GI_TYPELIB_PATH=/usr/local/lib/x86_64-linux-gnu/girepository-1.0
+      - LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu
+      - GST_PLUGIN_PATH=/usr/local/lib/x86_64-linux-gnu/gstreamer-1.0
+    # Override default CMD to run the FastAPI app directly with uvicorn
+    command: uvicorn docker.gstreamer_mcp_server:app --host 0.0.0.0 --port 8000
+
+  gstreamer-docs-cuda:
+    build:
+      context: .
+      dockerfile: Dockerfile-gstreamer-1.28-cuda
+    image: gstreamer-1.28-cuda-mcp
+    container_name: gstreamer-mcp-cuda
+    working_dir: /workspace
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ../:/workspace
+    environment:
+      - PYTHONPATH=/usr/local/lib/python3/dist-packages:/usr/local/lib/python3.12/site-packages
+      - GI_TYPELIB_PATH=/usr/local/lib/x86_64-linux-gnu/girepository-1.0
+      - LD_LIBRARY_PATH=/usr/local/lib/x86_64-linux-gnu
+      - GST_PLUGIN_PATH=/usr/local/lib/x86_64-linux-gnu/gstreamer-1.0
+    # Enable NVIDIA GPUS
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Override default CMD to run the FastAPI app directly with uvicorn
+    command: uvicorn docker.gstreamer_mcp_server:app --host 0.0.0.0 --port 8000
