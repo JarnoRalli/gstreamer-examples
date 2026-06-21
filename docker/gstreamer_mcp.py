@@ -113,33 +113,51 @@ def get_c_gst_docs(class_path: str) -> str:
 
 
 @mcp.tool()
-def list_gst_elements(filter_text: str = None, category_klass: str = None) -> str:
+def list_gst_elements(
+    name_filter: str = "",
+    plugin_filter: str = "",
+    category_klass: str = "",
+    global_query: str = "",
+) -> str:
     """
     Lists all available GStreamer elements currently installed and registered in the container.
-    Optionally filter elements by name/description (e.g. 'yolox', 'h264') or by semantic class/category
-    (e.g. 'Decoder', 'Encoder', 'Demuxer', 'Source', 'Sink').
+    Provides precise, structured filtering by name, plugin, classification, or global query fallback.
     """
-    res = _query_agent("elements", query=filter_text, klass=category_klass)
+    res = _query_agent(
+        "elements",
+        name=name_filter or None,
+        plugin=plugin_filter or None,
+        klass=category_klass or None,
+        query=global_query or None,
+    )
     if isinstance(res, str):
         return res
 
     elements = res.get("data", [])
     if not elements:
         filters = []
-        if filter_text:
-            filters.append(f"keyword '{filter_text}'")
+        if name_filter:
+            filters.append(f"name '{name_filter}'")
+        if plugin_filter:
+            filters.append(f"plugin '{plugin_filter}'")
         if category_klass:
-            filters.append(f"category '{category_klass}'")
+            filters.append(f"classification '{category_klass}'")
+        if global_query:
+            filters.append(f"global query '{global_query}'")
         return f"No GStreamer elements found matching: {', '.join(filters)}."
 
     output = []
-    header = "Found " + str(len(elements)) + " elements"
-    if filter_text or category_klass:
+    header = f"Found {len(elements)} elements"
+    if name_filter or plugin_filter or category_klass or global_query:
         header_filters = []
-        if filter_text:
-            header_filters.append(f"keyword '{filter_text}'")
+        if name_filter:
+            header_filters.append(f"name '{name_filter}'")
+        if plugin_filter:
+            header_filters.append(f"plugin '{plugin_filter}'")
         if category_klass:
-            header_filters.append(f"category '{category_klass}'")
+            header_filters.append(f"classification '{category_klass}'")
+        if global_query:
+            header_filters.append(f"global query '{global_query}'")
         header += f" matching {', '.join(header_filters)}"
     output.append(header + ":\n")
 
@@ -152,21 +170,23 @@ def list_gst_elements(filter_text: str = None, category_klass: str = None) -> st
 
 
 @mcp.tool()
-def get_gst_element_details(element_name: str) -> str:
+def get_gst_element_details(
+    element_name: str, include_raw: bool = False, minify_raw: bool = True
+) -> str:
     """
     Gets the full specification of a GStreamer element, including a beautifully structured Markdown summary
-    of properties (defaults, ranges, types, flags) and static pad templates (MIME types/caps) alongside the
-    detailed raw inspect specifications.
-    This is essential for finding out what parameters can be set and what formats are supported.
+    of properties (defaults, ranges, types, flags) and static pad templates (MIME types/caps).
+    Optionally includes the raw or minified gst-inspect-1.0 output if 'include_raw' is set to True.
     Example inputs: 'filesrc', 'jpeg2000parse', 'burn-yoloxinference', 'videoconvertscale'
     """
-    res = _query_agent("elements/details", name=element_name)
+    res = _query_agent(
+        "elements/details", name=element_name, raw=include_raw, minify=minify_raw
+    )
     if isinstance(res, str):
         return res
 
     data = res.get("data", {})
     schema = data.get("schema", {})
-    raw_text = data.get("raw_text", "")
 
     md_output = []
     md_output.append(f"# Element: {schema.get('name', element_name)}")
@@ -217,11 +237,14 @@ def get_gst_element_details(element_name: str) -> str:
                 f"| `{p['name']}` | `{p['type']}` | `{default_str}` | {access_str} | {p['description']} |"
             )
 
-    md_output.append("\n---\n")
-    md_output.append("## Raw gst-inspect-1.0 Output")
-    md_output.append("```text")
-    md_output.append(raw_text)
-    md_output.append("```")
+    if "raw_text" in data and data["raw_text"]:
+        md_output.append("\n---\n")
+        md_output.append(
+            f"## Raw gst-inspect-1.0 Output ({'Minified' if minify_raw else 'Original'})"
+        )
+        md_output.append("```text")
+        md_output.append(data["raw_text"])
+        md_output.append("```")
 
     return "\n".join(md_output)
 
@@ -238,6 +261,44 @@ def validate_gst_pipeline(pipeline_string: str) -> str:
     if isinstance(res, str):
         return res
     return res.get("data", {}).get("diagnostic", "No diagnostic available.")
+
+
+@mcp.tool()
+def list_gst_classes(namespace: str = "", filter_text: str = "") -> str:
+    """
+    Lists all available GObject classes and interfaces within the registered namespaces in the container.
+    Optionally filter by namespace (e.g. 'Gst', 'GstVideo') or search class name by keyword/filter text.
+    """
+    res = _query_agent(
+        "docs/classes", namespace=namespace or None, query=filter_text or None
+    )
+    if isinstance(res, str):
+        return res
+
+    classes = res.get("data", [])
+    if not classes:
+        filters = []
+        if namespace:
+            filters.append(f"namespace '{namespace}'")
+        if filter_text:
+            filters.append(f"keyword '{filter_text}'")
+        return f"No classes found matching: {', '.join(filters)}."
+
+    output = []
+    header = f"Found {len(classes)} classes/interfaces"
+    if namespace or filter_text:
+        header_filters = []
+        if namespace:
+            header_filters.append(f"namespace '{namespace}'")
+        if filter_text:
+            header_filters.append(f"keyword '{filter_text}'")
+        header += f" matching {', '.join(header_filters)}"
+    output.append(header + ":\n")
+
+    for item in classes:
+        output.append(f" - {item['class_path']}")
+
+    return "\n".join(output)
 
 
 if __name__ == "__main__":

@@ -850,30 +850,71 @@ curl "http://127.0.0.1:8000/docs/python?class_path=Gst.Element"</pre>
 curl "http://127.0.0.1:8000/docs/c?class_path=Gst.Element"</pre>
                     </div>
 
-                    <!-- Available Elements API -->
+                    <!-- Discover Classes API -->
                     <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 space-y-3 md:col-span-2">
-                        <h4 class="text-sm font-bold text-white">Search Registered Elements</h4>
+                        <h4 class="text-sm font-bold text-white">Discover Classes &amp; Namespaces</h4>
                         <p class="text-xs text-slate-400">
-                            Find installed components. Support filtering by name, description, or
-                            <b>semantic classification</b> (Klass).
+                            Find available GObject classes and interfaces parsed dynamically from the system's `.gir` XML files.
                         </p>
                         <div class="space-y-2">
                             <div>
                                 <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">1. Filter by keyword:</span>
                                 <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300
                                             border border-slate-800/50 overflow-x-auto"
-                                >curl "http://127.0.0.1:8000/elements?query=nv"</pre>
+                                >curl "http://127.0.0.1:8000/docs/classes?query=VideoDecoder"</pre>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">2. Filter by GObject Namespace:</span>
+                                <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300
+                                            border border-slate-800/50 overflow-x-auto"
+                                >curl "http://127.0.0.1:8000/docs/classes?namespace=GstVideo"</pre>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">3. List All Available Namespaces &amp; Classes:</span>
+                                <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300
+                                            border border-slate-800/50 overflow-x-auto"
+                                >curl "http://127.0.0.1:8000/docs/classes"</pre>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Available Elements API -->
+                    <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 space-y-3 md:col-span-2">
+                        <h4 class="text-sm font-bold text-white">Search Registered Elements</h4>
+                        <p class="text-xs text-slate-400">
+                            Find installed components using precise filters for element name, plugin, classification class, or global query.
+                        </p>
+                        <div class="space-y-2">
+                            <div>
+                                <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">
+                                    1. Precise Element Name Filter (e.g. only names containing 'nv'):
+                                </span>
+                                <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300
+                                            border border-slate-800/50 overflow-x-auto"
+                                >curl "http://127.0.0.1:8000/elements?name=nv"</pre>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">2. Strict Plugin Filter:</span>
+                                <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300
+                                            border border-slate-800/50 overflow-x-auto"
+                                >curl "http://127.0.0.1:8000/elements?plugin=videoparsersbad"</pre>
                             </div>
                             <div>
                                 <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">
-                                    2. Semantic Class Filter (e.g. Decoder, Encoder, Demuxer):
+                                    3. Semantic Class Filter (e.g. Decoder, Encoder, Demuxer):
                                 </span>
                                 <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300
                                             border border-slate-800/50 overflow-x-auto"
                                 >curl "http://127.0.0.1:8000/elements?klass=Decoder"</pre>
                             </div>
                             <div>
-                                <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">3. List All Elements:</span>
+                                <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">4. Global Fallback Search:</span>
+                                <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300
+                                            border border-slate-800/50 overflow-x-auto"
+                                >curl "http://127.0.0.1:8000/elements?query=nv"</pre>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">5. List All Elements:</span>
                                 <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300
                                             border border-slate-800/50 overflow-x-auto"
                                 >curl "http://127.0.0.1:8000/elements"</pre>
@@ -883,13 +924,36 @@ curl "http://127.0.0.1:8000/docs/c?class_path=Gst.Element"</pre>
 
                     <!-- Inspect Element Details API -->
                     <div class="bg-slate-900/40 border border-slate-800/80 rounded-2xl p-6 space-y-3 md:col-span-2">
-                        <h4 class="text-sm font-bold text-white">Inspect Element Details (Structured JSON + Raw Specs)</h4>
+                        <h4 class="text-sm font-bold text-white">Inspect Element Details (Structured Schema &amp; Optional Raw Specs)</h4>
                         <p class="text-xs text-slate-400">
-                            Retrieves typed property structures, writable/readable flags,
-                            pad templates, and caps alongside raw inspect readouts.
+                            Retrieves typed property structures, writable/readable flags, pad templates, and caps.
+                            To save context tokens and execution speed, the raw <code>gst-inspect-1.0</code> output is
+                            omitted by default and can be requested optionally with minification applied.
                         </p>
-                        <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300 border border-slate-800/50 overflow-x-auto">
-curl "http://127.0.0.1:8000/elements/details?name=jpeg2000parse" | jq .</pre>
+                        <div class="space-y-2">
+                            <div>
+                                <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">1. Default (Highly efficient JSON schema only):</span>
+                                <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300
+                                            border border-slate-800/50 overflow-x-auto"
+                                >curl "http://127.0.0.1:8000/elements/details?name=jpeg2000parse" | jq .</pre>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">
+                                    2. Request Minified Raw Text (Compact, saves ~20-30% tokens):
+                                </span>
+                                <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300
+                                            border border-slate-800/50 overflow-x-auto"
+                                >curl "http://127.0.0.1:8000/elements/details?name=jpeg2000parse&amp;raw=true" | jq .</pre>
+                            </div>
+                            <div>
+                                <span class="text-[10px] font-semibold text-slate-500 uppercase font-mono">
+                                    3. Request Original Raw CLI Text (With native indentation and whitespace):
+                                </span>
+                                <pre class="bg-slate-950 p-3 rounded-xl text-xs text-slate-300
+                                            border border-slate-800/50 overflow-x-auto"
+                                >curl "http://127.0.0.1:8000/elements/details?name=jpeg2000parse&amp;raw=true&amp;minify=false" | jq .</pre>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Pipeline Validation API -->
@@ -970,12 +1034,21 @@ def get_status() -> dict[str, Any]:
 
 @app.get("/elements")
 def get_available_elements(
-    query: str
-    | None = Query(None, description="Optional search string/filter for elements"),
+    name: str
+    | None = Query(None, description="Optional filter by element name (e.g. 'nv')"),
+    plugin: str
+    | None = Query(
+        None, description="Optional filter strictly by GStreamer plugin name"
+    ),
     klass: str
     | None = Query(
         None,
         description="Optional semantic class filter (e.g. 'Decoder', 'Encoder', 'Demuxer', 'Source')",
+    ),
+    query: str
+    | None = Query(
+        None,
+        description="Optional global fallback search (name, desc, plugin, class)",
     ),
 ) -> dict[str, Any]:
     """
@@ -983,10 +1056,14 @@ def get_available_elements(
 
     Parameters
     ----------
-    query : str or None, optional
-        A search string to filter elements by name, description, plugin, or class, by default None.
+    name : str or None, optional
+        An element name filter, by default None.
+    plugin : str or None, optional
+        A GStreamer plugin name filter, by default None.
     klass : str or None, optional
         A semantic class to filter elements, by default None.
+    query : str or None, optional
+        A global search string to filter elements by name, description, plugin, or class, by default None.
 
     Returns
     -------
@@ -1011,32 +1088,38 @@ def get_available_elements(
 
         elements = []
         for factory in factories:
-            name = factory.get_name()
-            f_klass = factory.get_klass()
-            desc = factory.get_description()
-            plugin = factory.get_plugin_name() or "core"
+            f_name = factory.get_name()
+            f_klass = factory.get_klass() or ""
+            desc = factory.get_description() or ""
+            f_plugin = factory.get_plugin_name() or "core"
 
-            # Apply query filter
+            # 1. Strict Name Filter
+            if name and name.lower() not in f_name.lower():
+                continue
+
+            # 2. Strict Plugin Filter
+            if plugin and plugin.lower() not in f_plugin.lower():
+                continue
+
+            # 3. Strict Classification Filter
+            if klass and klass.lower() not in f_klass.lower():
+                continue
+
+            # 4. Fallback Global Query
             if query:
                 q = query.lower()
                 if (
-                    q not in name.lower()
+                    q not in f_name.lower()
                     and q not in desc.lower()
-                    and q not in plugin.lower()
+                    and q not in f_plugin.lower()
                     and q not in f_klass.lower()
                 ):
                     continue
 
-            # Apply klass filter
-            if klass:
-                k = klass.lower()
-                if k not in f_klass.lower():
-                    continue
-
             elements.append(
                 {
-                    "plugin": plugin,
-                    "element": name,
+                    "plugin": f_plugin,
+                    "element": f_name,
                     "klass": f_klass,
                     "description": desc,
                 }
@@ -1053,7 +1136,14 @@ def get_available_elements(
 def get_element_details(
     name: str = Query(
         ..., description="Element name to inspect, e.g. jpeg2000parse, filesrc"
-    )
+    ),
+    raw: bool = Query(
+        False, description="Whether to include raw gst-inspect-1.0 text in response"
+    ),
+    minify: bool = Query(
+        True,
+        description="Whether to minify raw text by stripping redundant whitespace and empty lines, if raw is True",
+    ),
 ) -> dict[str, Any]:
     """
     Get detailed information about a GStreamer element including schema and properties.
@@ -1062,11 +1152,15 @@ def get_element_details(
     ----------
     name : str
         The name of the GStreamer element to inspect.
+    raw : bool, optional
+        Whether to include raw gst-inspect-1.0 text in the response, by default False.
+    minify : bool, optional
+        Whether to minify the raw text to save context tokens, by default True.
 
     Returns
     -------
     dict of str to Any
-        A dictionary containing the status and element details (raw gst-inspect text and schema).
+        A dictionary containing the status and element details (schema and optionally raw text).
 
     Raises
     ------
@@ -1087,15 +1181,19 @@ def get_element_details(
                 status_code=404, detail=f"Element factory '{name}' not found."
             )
 
-        # 1. Run gst-inspect-1.0 to get the raw text report for easy human/LLM reading
+        # 1. Run gst-inspect-1.0 only if raw is requested
         raw_text = ""
-        try:
-            result = subprocess.run(
-                ["gst-inspect-1.0", name], capture_output=True, text=True, check=True
-            )
-            raw_text = result.stdout
-        except Exception:
-            pass
+        if raw:
+            try:
+                result = subprocess.run(
+                    ["gst-inspect-1.0", name],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                raw_text = result.stdout
+            except Exception:
+                pass
 
         # 2. Extract structured schema dynamically via PyGObject
         schema = {
@@ -1147,7 +1245,24 @@ def get_element_details(
                     }
                 )
 
-        return {"status": "success", "data": {"raw_text": raw_text, "schema": schema}}
+        data = {"schema": schema}
+        if raw and raw_text:
+            if minify:
+                import re
+
+                minified_lines = []
+                for line in raw_text.splitlines():
+                    line = line.rstrip()
+                    if not line:
+                        continue
+                    leading_spaces = len(line) - len(line.lstrip(" "))
+                    content = line.lstrip(" ")
+                    content = re.sub(r" {2,}", " ", content)
+                    minified_lines.append(" " * leading_spaces + content)
+                raw_text = "\n".join(minified_lines)
+            data["raw_text"] = raw_text
+
+        return {"status": "success", "data": data}
     except HTTPException:
         raise
     except Exception as e:
@@ -1406,3 +1521,147 @@ def get_c_docs(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"XML Parsing failed: {str(e)}")
+
+
+_classes_cache: dict[str, list[str]] = {}
+
+
+def _list_available_namespaces(search_paths: list[str]) -> list[str]:
+    """
+    List available GStreamer-related GObject namespaces from .gir files.
+
+    Parameters
+    ----------
+    search_paths : list of str
+        The search paths for GObject Introspection (.gir) files.
+
+    Returns
+    -------
+    list of str
+        A sorted list of available namespace names.
+    """
+    namespaces = set()
+    for base_dir in search_paths:
+        if os.path.exists(base_dir):
+            for f in os.listdir(base_dir):
+                if f.endswith(".gir"):
+                    parts = f.split("-")
+                    if parts:
+                        ns_name = parts[0]
+                        if ns_name.startswith("Gst") or ns_name in (
+                            "GLib",
+                            "GObject",
+                            "Gio",
+                        ):
+                            namespaces.add(ns_name)
+    return sorted(list(namespaces))
+
+
+def _get_classes_for_namespace(namespace: str, search_paths: list[str]) -> list[str]:
+    """
+    Get all classes and interfaces for a specific GObject namespace.
+
+    Parameters
+    ----------
+    namespace : str
+        The GObject namespace, e.g., 'Gst'.
+    search_paths : list of str
+        The search paths for .gir files.
+
+    Returns
+    -------
+    list of str
+        A sorted list of class and interface names in the namespace.
+    """
+    if namespace in _classes_cache:
+        return _classes_cache[namespace]
+
+    try:
+        gir_path = _find_gir_path(namespace, search_paths)
+    except FileNotFoundError:
+        return []
+
+    try:
+        tree = ET.parse(gir_path)
+        root = tree.getroot()
+        ns = {
+            "core": "http://www.gtk.org/introspection/core/1.0",
+        }
+
+        classes = []
+        for tag in ["class", "interface"]:
+            for elem in root.findall(f".//core:{tag}", ns):
+                name = elem.attrib.get("name")
+                if name:
+                    classes.append(name)
+
+        classes.sort()
+        _classes_cache[namespace] = classes
+        return classes
+    except Exception:
+        return []
+
+
+@app.get("/docs/classes")
+def get_available_classes(
+    namespace: str
+    | None = Query(
+        None, description="Optional namespace filter (e.g. 'Gst', 'GstVideo')"
+    ),
+    query: str
+    | None = Query(None, description="Optional search/filter string for class names"),
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    """
+    List and filter GObject classes and interfaces available in the container.
+
+    Parameters
+    ----------
+    namespace : str or None, optional
+        A namespace name to filter classes, by default None.
+    query : str or None, optional
+        A search string to filter classes by name or class path, by default None.
+    settings : Settings
+        Application settings.
+
+    Returns
+    -------
+    dict of str to Any
+        A dictionary containing the status, available namespaces, and classes.
+    """
+    available_namespaces = _list_available_namespaces(settings.gir_search_paths)
+
+    if namespace:
+        if namespace not in available_namespaces:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Namespace '{namespace}' is not available. Available: {available_namespaces}",
+            )
+        target_namespaces = [namespace]
+    else:
+        target_namespaces = available_namespaces
+
+    data = []
+    for ns_name in target_namespaces:
+        classes = _get_classes_for_namespace(ns_name, settings.gir_search_paths)
+        for cls in classes:
+            class_path = f"{ns_name}.{cls}"
+            # Apply search filter
+            if query:
+                q = query.lower()
+                if q not in cls.lower() and q not in class_path.lower():
+                    continue
+
+            data.append(
+                {
+                    "namespace": ns_name,
+                    "class": cls,
+                    "class_path": class_path,
+                }
+            )
+
+    return {
+        "status": "success",
+        "namespaces": available_namespaces,
+        "data": data,
+    }
