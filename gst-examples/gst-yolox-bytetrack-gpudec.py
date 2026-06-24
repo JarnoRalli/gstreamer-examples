@@ -634,6 +634,9 @@ class GstYoloxByteTrack(GstBase.BaseTransform):
             if gst_stream_obj:
                 # Barrier 2: Force GStreamer's stream to wait for PyTorch's inference to finish reading before reusing the memory
                 gst_stream_obj.wait_stream(torch.cuda.current_stream())
+            if self.use_gpu:
+                # Force the host thread to wait until all async PyTorch GPU operations are fully complete
+                torch.cuda.synchronize()
         except Exception as e:
             # If a Blackwell GPU execution error happens, fallback immediately to CPU
             if "CUDA error" in str(e) or "kernel image" in str(e):
@@ -768,6 +771,7 @@ def run_pipeline(
     class_threshold: float = 0.4,
     iou_threshold: float = 0.7,
     model_type: str = "small",
+    output_file_path: Optional[str] = None,
 ) -> None:
     """
     Configure, build, and execute the GStreamer YOLOX Object Detection and Tracking pipeline.
@@ -838,39 +842,37 @@ def run_pipeline(
 
     # Load PyTorch, the model, and initialize the device ON THE MAIN THREAD!
     GstYoloxByteTrack.load_model()
-    use_gpu = GstYoloxByteTrack.use_gpu
 
     # Register element
     Gst.Element.register(
         None, "gstyoloxbytetrack", Gst.Rank.NONE, GstYoloxByteTrack.__gtype__
     )
 
-    # Dynamic pipeline decoding and scaling selection based on backend choice
-    if backend == "cuda" and use_gpu:
-        print(
-            f"[Pipeline] Initializing GPU pipeline (nvh264dec + cudaconvertscale) with PyTorch YOLOX inference on {backend.upper()}..."
-        )
-        decode_and_scale = """
-            nvh264dec !
-            cudaconvertscale ! video/x-raw(memory:CUDAMemory),width=800,height=640,format=RGBA !
-        """
-        download_and_overlay = """
-            cudadownload ! video/x-raw,format=RGBA !
-            objectdetectionoverlay !
-            videoconvertscale ! autovideosink sync=false
-        """
+    # Build the sink branch of the pipeline: always show display, optionally write to output file
+    if output_file_path:
+        sink_branch = f"""
+            videoconvertscale ! tee name=t
+            t. ! queue ! videoconvertscale ! autovideosink sync=true
+            t. ! queue ! videoconvertscale !
+            x264enc bframes=0 tune=zerolatency bitrate=12000 speed-preset=veryfast !
+            h264parse ! mp4mux ! filesink sync=false location={output_file_path}
+        """.strip()
     else:
-        print(
-            f"[Pipeline] Initializing CPU pipeline (avdec_h264 + videoconvertscale) with PyTorch YOLOX inference on {backend.upper()}..."
-        )
-        decode_and_scale = """
-            avdec_h264 !
-            videoconvertscale ! video/x-raw,width=800,height=640,format=RGBA !
-        """
-        download_and_overlay = """
-            objectdetectionoverlay !
-            videoconvertscale ! autovideosink sync=false
-        """
+        sink_branch = "videoconvertscale ! autovideosink sync=true"
+
+    # GPU pipeline (nvh264dec + cudaconvertscale) is always used for gpudec
+    print(
+        f"[Pipeline] Initializing GPU pipeline (nvh264dec + cudaconvertscale) with PyTorch YOLOX inference on {backend.upper()}..."
+    )
+    decode_and_scale = """
+        nvh264dec !
+        cudaconvertscale ! video/x-raw(memory:CUDAMemory),width=800,height=640,format=RGBA !
+    """.strip()
+    download_and_overlay = f"""
+        cudadownload ! video/x-raw,format=RGBA !
+        objectdetectionoverlay !
+        {sink_branch}
+    """.strip()
 
     pipeline_definition = f"""
         filesrc location={video_file_path} !
@@ -880,7 +882,7 @@ def run_pipeline(
         gstyoloxbytetrack !
         queue max-size-buffers=2 !
         {download_and_overlay}
-    """
+    """.strip()
 
     print("=== Pipeline Definition ===")
     print(pipeline_definition.strip())
@@ -936,6 +938,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-i", "--input", type=str, required=True, help="Path to input video file."
+    )
+    parser.add_argument(
+        "-o", "--output", type=str, default=None, help="Path to save output video file."
     )
     parser.add_argument(
         "-b",
@@ -997,6 +1002,7 @@ if __name__ == "__main__":
             args.class_threshold,
             args.iou_threshold,
             args.model_type,
+            args.output,
         )
     except Exception as e:
         print(e)
