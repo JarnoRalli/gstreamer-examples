@@ -103,13 +103,13 @@ Inference backend can be chosen with the `backend-type` parameter in the `burn-y
 
 ### 2.4.1 Nd-array and Vulkan Backends
 
-First build the container
+First build the image
 
 ```bash
 docker build -t gstreamer-1.28 -f ../docker/Dockerfile-gstreamer-1.28 .
 ```
 
-Once the container exists, you can start a session by running
+Once the image has been built, you can start a session by running
 
 ```bash
 xhost +local:docker
@@ -146,13 +146,13 @@ gst-launch-1.0 filesrc location=/workspace/your_video.mp4 \
 
 ### 2.4.2 Cuda Backend
 
-First build the container
+First build the image
 
 ```bash
 docker build -t gstreamer-1.28-cuda -f ../docker/Dockerfile-gstreamer-1.28-cuda .
 ```
 
-Once the container exists, you can start a session by running
+Once the image has been built, you can start a session by running
 
 ```bash
 xhost +local:docker

@@ -324,6 +324,7 @@ def run_pipeline(
     class_threshold: float = 0.4,
     iou_threshold: float = 0.7,
     model_type: str = "medium",
+    output_file_path: Optional[str] = None,
 ) -> None:
     """
     Configure, build, and execute the GStreamer tracking pipeline.
@@ -365,6 +366,16 @@ def run_pipeline(
     # Register the custom in-memory element
     Gst.Element.register(None, "gstbytetrack", Gst.Rank.NONE, GstByteTrack.__gtype__)
 
+    # Build the sink branch of the pipeline: always show display, optionally write to output file
+    if output_file_path:
+        sink_branch = f"""
+            videoconvertscale ! tee name=t
+            t. ! queue ! videoconvertscale ! autovideosink sync=true
+            t. ! queue ! videoconvertscale ! x264enc bframes=0 tune=zerolatency bitrate=12000 speed-preset=veryfast ! h264parse ! mp4mux ! filesink sync=false location={output_file_path} # noqa: E501
+        """
+    else:
+        sink_branch = "videoconvertscale ! autovideosink sync=true"
+
     # Build the pipeline with our custom element inserted after yoloxtensordec
     pipeline_definition = f"""
         filesrc location={video_file_path} !
@@ -379,7 +390,7 @@ def run_pipeline(
                      iou-threshold={iou_threshold} !
         gstbytetrack !
         videoconvertscale ! objectdetectionoverlay !
-        videoconvertscale ! autovideosink sync=false
+        {sink_branch}
     """
 
     print("=== Pipeline Definition ===")
@@ -426,6 +437,9 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-i", "--input", type=str, required=True, help="Path to input video file."
+    )
+    parser.add_argument(
+        "-o", "--output", type=str, default=None, help="Path to save output video file."
     )
     parser.add_argument(
         "-b",
@@ -487,6 +501,7 @@ if __name__ == "__main__":
             args.class_threshold,
             args.iou_threshold,
             args.model_type,
+            args.output,
         )
     except Exception as e:
         print(e)
