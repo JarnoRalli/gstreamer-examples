@@ -370,17 +370,28 @@ def run_pipeline(
     if output_file_path:
         sink_branch = f"""
             videoconvertscale ! tee name=t
-            t. ! queue ! videoconvertscale ! autovideosink sync=true
-            t. ! queue ! videoconvertscale ! x264enc bframes=0 tune=zerolatency bitrate=12000 speed-preset=veryfast ! h264parse ! mp4mux ! filesink sync=false location={output_file_path} # noqa: E501
+            t. ! queue ! videoconvertscale ! autovideosink sync=false
+            t. ! queue ! videoconvertscale !
+            x264enc bframes=0 tune=zerolatency bitrate=12000 speed-preset=veryfast !
+            h264parse ! mp4mux ! filesink sync=false location={output_file_path}
         """
     else:
-        sink_branch = "videoconvertscale ! autovideosink sync=true"
+        sink_branch = "videoconvertscale ! autovideosink sync=false"
+
+    # Choose optimal decode & scale pipeline based on the inference backend
+    if backend == "cuda":
+        decode_scale_block = """
+            nvh264dec !
+            cudaconvertscale ! video/x-raw(memory:CUDAMemory),width=800,height=640,format=RGB !
+            cudadownload ! video/x-raw,format=RGB
+        """
+    else:
+        decode_scale_block = "avdec_h264 ! videoconvertscale ! video/x-raw,width=800,height=640,format=RGB"
 
     # Build the pipeline with our custom element inserted after yoloxtensordec
     pipeline_definition = f"""
         filesrc location={video_file_path} !
-        qtdemux ! h264parse ! avdec_h264 !
-        videoconvertscale ! video/x-raw,width=800,height=640 !
+        qtdemux ! h264parse ! {decode_scale_block.strip()} !
         queue max-size-buffers=2 !
         burn-yoloxinference backend-type={backend} model-type={model_type} !
         queue max-size-buffers=2 !

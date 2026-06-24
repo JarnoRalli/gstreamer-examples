@@ -853,7 +853,9 @@ def run_pipeline(
         sink_branch = f"""
             videoconvertscale ! tee name=t
             t. ! queue ! videoconvertscale ! autovideosink sync=true
-            t. ! queue ! videoconvertscale ! x264enc bframes=0 tune=zerolatency bitrate=12000 speed-preset=veryfast ! h264parse ! mp4mux ! filesink sync=false location={output_file_path} # noqa: E501
+            t. ! queue ! videoconvertscale !
+            x264enc bframes=0 tune=zerolatency bitrate=12000 speed-preset=veryfast !
+            h264parse ! mp4mux ! filesink sync=false location={output_file_path}
         """.strip()
     else:
         sink_branch = "videoconvertscale ! autovideosink sync=true"
