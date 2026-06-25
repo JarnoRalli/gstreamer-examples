@@ -34,7 +34,7 @@ When executing the following scripts, use the specified Docker containers. If th
      docker run -d --rm \
        --name gstreamer-1.28-cuda-env \
        --gpus all \
-       -e NVIDIA_DRIVER_CAPABILITIES=gpu,compute,video,utility,graphics \
+       -e NVIDIA_DRIVER_CAPABILITIES=compute,video,utility,graphics \
        -v $(pwd):/workspace \
        -w /workspace \
        gstreamer-1.28-cuda tail -f /dev/null

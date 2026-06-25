@@ -133,12 +133,15 @@ dmypy.json
 
 # mp4 video files
 *.mp4
+*.MP4
 
 # avi video files
 *.avi
+*.AVI
 
 # mkv video files
 *.mkv
+*.MKV
 
 # Gaphviz dot files
 *.dot

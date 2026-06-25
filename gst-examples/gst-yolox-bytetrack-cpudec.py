@@ -495,7 +495,7 @@ def run_pipeline(
 
     pipeline_definition = f"""
         filesrc location={video_file_path} !
-        qtdemux ! h264parse ! avdec_h264 !
+        decodebin !
         videoconvertscale ! video/x-raw,width=800,height=640,format=RGBA !
         queue max-size-buffers=2 !
         gstyoloxbytetrack !
