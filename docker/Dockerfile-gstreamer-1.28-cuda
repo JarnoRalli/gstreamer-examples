@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y \
     libegl1-mesa-dev \
     libgles2-mesa-dev \
     libvulkan-dev \
+    glslang-tools \
     libxext-dev \
     libxcb1-dev \
     libxcb-shm0-dev \
@@ -53,6 +54,8 @@ RUN apt-get update && apt-get install -y \
     libavformat-dev \
     libavfilter-dev \
     libswscale-dev \
+    libxkbcommon-dev \
+    libxkbcommon-x11-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Clone and install the FFmpeg NVIDIA codec headers required by GStreamer
@@ -62,7 +65,9 @@ RUN git clone https://git.videolan.org/git/ffmpeg/nv-codec-headers.git /tmp/nv-c
     rm -rf /tmp/nv-codec-headers
 
 # Tell pkg-config where to find the newly installed ffnvcodec.pc
-ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}
+# ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}
+# Option A: Explicitly define the standard paths directly (Cleanest)
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig:/usr/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
 
 # Install modern Meson
 RUN pip3 install --break-system-packages meson pygobject supervision
@@ -203,6 +208,8 @@ RUN meson setup build \
     -Dgst-plugins-bad:nvcodec=enabled \
     -Dgst-plugins-bad:gl=enabled \
     -Dgst-plugins-base:gl=enabled \
+    -Dgst-plugins-bad:vulkan=enabled \
+    -Dgst-plugins-bad:vulkan-windowing=x11 \
     -Dgpl=enabled \
     -Dintrospection=enabled \
     -Dpython=enabled \

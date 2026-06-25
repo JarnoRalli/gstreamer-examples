@@ -381,17 +381,17 @@ def run_pipeline(
     # Choose optimal decode & scale pipeline based on the inference backend
     if backend == "cuda":
         decode_scale_block = """
-            nvh264dec !
+            decodebin !
             cudaconvertscale ! video/x-raw(memory:CUDAMemory),width=800,height=640,format=RGB !
             cudadownload ! video/x-raw,format=RGB
         """
     else:
-        decode_scale_block = "avdec_h264 ! videoconvertscale ! video/x-raw,width=800,height=640,format=RGB"
+        decode_scale_block = "decodebin ! videoconvertscale ! video/x-raw,width=800,height=640,format=RGB"
 
     # Build the pipeline with our custom element inserted after yoloxtensordec
     pipeline_definition = f"""
         filesrc location={video_file_path} !
-        qtdemux ! h264parse ! {decode_scale_block.strip()} !
+        {decode_scale_block.strip()} !
         queue max-size-buffers=2 !
         burn-yoloxinference backend-type={backend} model-type={model_type} !
         queue max-size-buffers=2 !

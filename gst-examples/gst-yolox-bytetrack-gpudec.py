@@ -862,10 +862,10 @@ def run_pipeline(
 
     # GPU pipeline (nvh264dec + cudaconvertscale) is always used for gpudec
     print(
-        f"[Pipeline] Initializing GPU pipeline (nvh264dec + cudaconvertscale) with PyTorch YOLOX inference on {backend.upper()}..."
+        f"[Pipeline] Initializing GPU pipeline with PyTorch YOLOX inference on {backend.upper()}..."
     )
     decode_and_scale = """
-        nvh264dec !
+        decodebin !
         cudaconvertscale ! video/x-raw(memory:CUDAMemory),width=800,height=640,format=RGBA !
     """.strip()
     download_and_overlay = f"""
@@ -876,7 +876,6 @@ def run_pipeline(
 
     pipeline_definition = f"""
         filesrc location={video_file_path} !
-        qtdemux ! h264parse !
         {decode_and_scale}
         queue max-size-buffers=2 !
         gstyoloxbytetrack !
@@ -947,7 +946,7 @@ if __name__ == "__main__":
         "--backend",
         type=str,
         default="cuda",
-        choices=["cpu", "cuda"],
+        choices=["cuda"],
         help="Inference backend (default: cuda).",
     )
     parser.add_argument(

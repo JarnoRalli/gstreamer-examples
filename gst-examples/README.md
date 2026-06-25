@@ -134,7 +134,7 @@ If you want to process a video, use the following command
 
 ```bash
 gst-launch-1.0 filesrc location=/workspace/your_video.mp4 \
-     ! qtdemux ! h264parse ! avdec_h264 \
+     ! decodebin \
      ! videoconvertscale ! "video/x-raw,width=800,height=640" \
      ! queue max-size-buffers=2 \
      ! burn-yoloxinference backend-type=nd-array model-type=tiny \
@@ -179,9 +179,7 @@ If you want to process a video, use the following command
 
 ```bash
 gst-launch-1.0 filesrc location=/workspace/your_video.mp4 \
-     ! qtdemux \
-     ! h264parse \
-     ! nvh264dec \
+     ! decodebin \
      ! cudaconvertscale \
      ! cudadownload \
      ! "video/x-raw,width=800,height=640,format=RGB" \
