@@ -1,10 +1,8 @@
 services:
-
-  celery_worker:
+  rtsp_server:
     build: ./
     container_name: rtsp-server
-    command: python3 /home/rtsp-server.py --files file:///Videos/<MY-VIDEO-FILE>
+    command: python3 /home/rtsp-server.py --files file:///Videos/${VIDEO_FILE:-default.mp4}
     volumes:
-      - $HOME/Videos:/Videos
+      - ${HOME}/Videos:/Videos
     network_mode: host
-
