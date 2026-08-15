@@ -6,24 +6,24 @@ These are Gstreamer related examples. Before running the examples, it is a good 
 gst-inspect-1.0
 ```
 
-## Contents
+## Table of Contents
 
-* [1 Requirements](#1-requirements)
-* [2 Playback](#2-playback)
+* [1. Requirements](#1-requirements)
+* [2. Playback](#2-playback)
   * Examples that show how to create GStreamer pipelines dynamically in Python.
-* [3 PyTorch](#3-pytorch)
+* [3. PyTorch Inference](#3-pytorch-inference)
   * Examples that show how to create GStreamer pipelines that use PyTorch for inference.
-* [4 RTSP Server](#4-rtsp-server)
+* [4. RTSP Server](#4-rtsp-server)
   * Example that shows how to create a RTSP server for streaming videos.
-* [5 YOLOX with Burn](#5-yolox-with-burn)
+* [5. YOLOX with Burn](#5-yolox-with-burn)
   * Examples that show how to use `burn-yoloxinference` element for object detection.
-  * [5.1 Nd-array and Vulkan Backends](#51-nd-array-and-vulkan-backends)
-  * [5.2 Cuda Backend](#52-cuda-backend)
-  * [5.3 burn-yoloxinference with ByteTrack](#53-burn-yoloxinference-with-bytetrack)
-* [6 YOLOX with PyTorch and ByteTrack](#6-yolox-with-pytorch-and-bytetrack)
+  * [5.1. Nd-array and Vulkan Backends](#51-nd-array-and-vulkan-backends)
+  * [5.2. Cuda Backend](#52-cuda-backend)
+  * [5.3. burn-yoloxinference with ByteTrack](#53-burn-yoloxinference-with-bytetrack)
+* [6. YOLOX with PyTorch and ByteTrack](#6-yolox-with-pytorch-and-bytetrack)
   * Example of YOLOX with PyTorch inference and ByteTrack tracker.
 
-# 1 Requirements
+## 1. Requirements
 
 * Python
 * Gst-python
@@ -33,14 +33,18 @@ gst-inspect-1.0
   * torch
   * torchvision
 
-# 2 Playback
+---
+
+## 2. Playback
 
 * [gst-qtdemux-h264.py](gst-qtdemux-h264.py)
   * Plays back h264 encoded video stream from a file (e.g. mp4).
 * [gst-qtdemux-h264-avdec_aac.py](gst-qtdemux-h264-avdec_aac.py)
   * Plays back h264 encoded video stream and MPEG-4 AAC encoded audio stream from a file (e.g. mp4).
 
-# 3 PyTorch
+---
+
+## 3. PyTorch Inference
 
 * [gst-pytorch-example-1.py](gst-pytorch-example-1.py)
   * Captures frames from a GStreamer pipeline and passes those to a SSD-detector.
@@ -53,7 +57,9 @@ gst-inspect-1.0
 
 You can use the Docker container defined in [Dockerfile-deepstream-8.0](../docker/Dockerfile-deepstream-8.0) to run the examples.
 
-# 4 RTSP Server
+---
+
+## 4. RTSP Server
 
 This example launches an RTSP server and streams a video over RTP (Real-Time Transport Protocol), encoded in H264.
 Easiest way to launch the server is to use the Docker Compose script inside the [rtsp-server](./rtsp-server) directory.
@@ -64,7 +70,7 @@ cd rtsp-server
 VIDEO_FILE="my_sample_video.mp4" docker compose up
 ```
 
-## 4.1 Show the RTSP Stream Using GStreamer
+### 4.1. Show the RTSP Stream Using GStreamer
 
 You can display the RTSP stream (using CPU decoder to decode the video frames) by running the following:
 
@@ -73,7 +79,7 @@ gst-launch-1.0 rtspsrc location=rtsp://localhost:8554/camera1 protocols=tcp late
 rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! timeoverlay ! autovideosink
 ```
 
-## 4.2 Show the RTSP Stream Using Deepstream From X86/X64
+### 4.2. Show the RTSP Stream Using Deepstream From X86/X64
 
 You can display the RTSP stream with hardware acceleration using DeepStream on a non-Jetson (x86_64) device:
 
@@ -84,7 +90,7 @@ mux.sink_1 nvstreammux name=mux width=1920 height=1080 batch-size=1 live-source=
 queue ! nvvideoconvert ! queue ! nvdsosd ! queue ! nveglglessink
 ```
 
-## 4.3 Show the RTSP Stream Using Deepstream From Jetson
+### 4.3. Show the RTSP Stream Using Deepstream From Jetson
 
 You can display the RTSP stream with hardware acceleration using DeepStream on a Jetson (arm64) device by including the `nvegltransform` element before the EGL sink:
 
@@ -94,8 +100,10 @@ rtph264depay ! h264parse ! nvv4l2decoder ! queue ! nvvideoconvert ! queue ! \
 mux.sink_1 nvstreammux name=mux width=1920 height=1080 batch-size=1 live-source=1 ! \
 queue ! nvvideoconvert ! queue ! nvdsosd ! queue ! nvegltransform ! nveglglessink
 ```
-6 YOLOX with PyTorch and Bytetrack Tracker
-# 5 YOLOX with Burn
+
+---
+
+## 5. YOLOX with Burn
 
 This example uses the `burn-yoloxinference` for object detection. It requires GStreamer version >= 1.28. If you don't have
 a required version of GStreamer installed, the easiest way is to use the following Docker containers
@@ -107,7 +115,7 @@ a required version of GStreamer installed, the easiest way is to use the followi
 
 Inference backend can be chosen with the `backend-type` parameter in the `burn-yoloxinference` element.
 
-## 5.1 Nd-array and Vulkan Backends
+### 5.1. Nd-array and Vulkan Backends
 
 First build the image
 
@@ -150,7 +158,7 @@ gst-launch-1.0 filesrc location=/workspace/your_video.mp4 \
      ! videoconvertscale ! autovideosink sync=false
 ```
 
-## 5.2 Cuda Backend
+### 5.2. Cuda Backend
 
 First build the image
 
@@ -199,7 +207,7 @@ gst-launch-1.0 filesrc location=/workspace/your_video.mp4 \
      ! autovideosink sync=false
 ```
 
-## 5.3 burn-yoloxinference with ByteTrack
+### 5.3. burn-yoloxinference with ByteTrack
 
 [gst-bytetrack.py](gst-bytetrack.py) implements a pipeline that uses `burn-yoloxinference` for running the detector and then implements IoU and ByteTrack
 trackers in a separate GStreamer element. First launch the corresponding Docker (see above) and then run the code with
@@ -214,7 +222,9 @@ In order to see all the command line arguments, run
 python3 ./gst-bytetrack.py --help
 ```
 
-# 6 YOLOX with PyTorch and ByteTrack
+---
+
+## 6. YOLOX with PyTorch and ByteTrack
 
 It is also possible to write a single GStreamer element, in Python, that combines YOLOX detector with ByteTrack tracker inside the same element.
 Following implementations are available:
@@ -234,7 +244,7 @@ Following implementations are available:
 First launch the corresponding Docker (see above) and then run the code with:
 
 ```bash
-python3 gst-yolox-bytetrack-cpudec.py -i /workspace/your_video.mp4 -t bytetrack -m medium -b cuda
+python3 gst-yolox-bytetrack-cpudec.py -i /workspace/your_video.mp4 -t bytetrack -m medium
 ```
 
 , or
@@ -242,3 +252,5 @@ python3 gst-yolox-bytetrack-cpudec.py -i /workspace/your_video.mp4 -t bytetrack 
 ```bash
 python3 gst-yolox-bytetrack-gpudec.py -i /workspace/your_video.mp4 -t bytetrack -m medium -b cuda
 ```
+
+---
