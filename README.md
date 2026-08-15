@@ -5,7 +5,7 @@
 This repository contains examples related to GStreamer, Deepstream and Hailo. Some of the examples are written in Python
 and some of them are written in C/C++.
 
-# 1 Contents
+## 1. Contents
 
 Directories are as follows:
 
@@ -16,7 +16,7 @@ Directories are as follows:
 * [hailo-examples](hailo-examples/README.md)
   * Hailo related examples
 * [gst-examples](gst-examples/README.md)
-  * Gst-examples
+  * GStreamer examples
 * [docker](docker/README.md)
   * Docker files for generating containers
   * Model Context Protocol (MCP) for GStreamer 1.28
@@ -28,7 +28,7 @@ I recommend you to take a look at:
 * https://paulbridger.com/posts/video-analytics-pytorch-pipeline/
 * https://paulbridger.com/posts/video-analytics-pipeline-tuning/
 
-# 2 Helper-Package
+## 2. Helper-Package
 
 Helpers is a Python package that contains some helper routines for creating gst-pipelines.
 Some of the examples use modules from this package. If you get an error saying that the modules are missing, you can install it with the following instructions.
@@ -54,7 +54,7 @@ pip3 install ./helpers-0.0.1-py3-none-any.whl
 
 Replace `helpers-0.0.1-py3-none-any.whl` with the actual name/path of the whl-file that was created.
 
-## 2.1 Usage
+### 2.1. Usage
 
 Once you have installed the `helpers` package, you can use is as follows:
 
@@ -62,7 +62,7 @@ Once you have installed the `helpers` package, you can use is as follows:
 from helpers import gsthelpers
 ```
 
-## 2.2 Python Packages and Modules
+### 2.2. Python Packages and Modules
 
 For more information regarding Python packagaging etc., take a look at:
 
@@ -70,7 +70,7 @@ For more information regarding Python packagaging etc., take a look at:
 * [https://docs.python.org/3/tutorial/modules.html#packages](https://docs.python.org/3/tutorial/modules.html#packages)
 * [https://python-packaging-tutorial.readthedocs.io/en/latest/setup_py.html](https://python-packaging-tutorial.readthedocs.io/en/latest/setup_py.html)
 
-# 3 MCP Server for GStreamer
+## 3. MCP Server for GStreamer
 
 Agents are a great help when writing code. Sometimes, however, the LLM can get "stuck" if it does not find the correct information for a particular library version.
 Typical harnesses expose tools for downloading the source code, but this can fill up the context window pretty fast. GStreamer is one of the largest, if not the largest,

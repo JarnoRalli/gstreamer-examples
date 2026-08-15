@@ -5,7 +5,14 @@ Tappas can be used for creating image processing pipelines using GStreamer with 
 
 ---
 
-# 1 List of Examples
+## Table of Contents
+
+* [1. List of Examples](#1-list-of-examples)
+* [2. How to Run the Examples](#2-how-to-run-the-examples)
+
+---
+
+## 1. List of Examples
 
 Following is a list of Hailo related examples:
 
@@ -14,7 +21,7 @@ Following is a list of Hailo related examples:
 
 ---
 
-# 2 How to Run the Examples
+## 2. How to Run the Examples
 
 All the examples have been tested using the following:
 
